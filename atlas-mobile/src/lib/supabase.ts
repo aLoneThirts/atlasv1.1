@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 
 /**
  * Supabase istemcisi — brief §11: PostgreSQL + Auth + Edge Functions.
@@ -17,9 +18,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
+    // Web'de storage verme: supabase-js SSR korumalı localStorage kullanır.
+    // AsyncStorage'ın web shim'i window'a import anında dokunup static
+    // export'u (SSG, Node ortamı) kırıyor.
+    ...(Platform.OS === 'web' ? {} : { storage: AsyncStorage }),
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
+    // Web'de OAuth redirect sonrası URL'deki token'ı yakalamak için gerekli;
+    // native'de auth-google.ts elle setSession çağırıyor.
+    detectSessionInUrl: Platform.OS === 'web',
   },
 });

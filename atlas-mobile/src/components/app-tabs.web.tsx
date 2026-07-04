@@ -9,15 +9,18 @@ import {
 import { Pressable, View, StyleSheet } from 'react-native';
 
 import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
 
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { AtlasColors, AtlasFonts, AtlasLayout, AtlasSpacing, ledgeShadowWeb } from '@/constants/atlas-theme';
+
+/** Sabit alt çubuğun yaklaşık yüksekliği — TabSlot'a paddingBottom olarak eklenir */
+const TAB_BAR_HEIGHT = 84;
 
 /** Atlas alt sekmeleri (web) — Ev, Harita, Koç, Yanlışlar */
 export default function AppTabs() {
   return (
     <Tabs>
-      <TabSlot style={{ height: '100%' }} />
+      {/* alttaki sabit sekme çubuğunun içeriğin üzerine binmemesi için pay bırak */}
+      <TabSlot style={{ height: '100%', paddingBottom: TAB_BAR_HEIGHT }} />
       <TabList asChild>
         <CustomTabList>
           <TabTrigger name="index" href="/" asChild>
@@ -41,13 +44,14 @@ export default function AppTabs() {
 export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
   return (
     <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView
-        type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
+      <View style={styles.tabButtonView}>
+        {isFocused && <View style={styles.activeNub} />}
+        <ThemedText
+          type="small"
+          style={[styles.tabLabel, isFocused ? styles.tabLabelActive : styles.tabLabelInactive]}>
           {children}
         </ThemedText>
-      </ThemedView>
+      </View>
     </Pressable>
   );
 }
@@ -55,12 +59,10 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
 export function CustomTabList(props: TabListProps) {
   return (
     <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
-          ⚔️ Atlas
-        </ThemedText>
+      <View style={styles.innerContainer}>
+        <ThemedText style={styles.brandText}>⚔️ Atlas</ThemedText>
         {props.children}
-      </ThemedView>
+      </View>
     </View>
   );
 }
@@ -68,31 +70,57 @@ export function CustomTabList(props: TabListProps) {
 const styles = StyleSheet.create({
   tabListContainer: {
     position: 'absolute',
+    bottom: 0,
     width: '100%',
-    padding: Spacing.three,
+    padding: AtlasSpacing.three,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
   },
   innerContainer: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
+    backgroundColor: AtlasColors.white,
+    paddingVertical: AtlasSpacing.two,
+    paddingHorizontal: AtlasSpacing.five,
+    borderRadius: AtlasSpacing.five,
     flexDirection: 'row',
     alignItems: 'center',
     flexGrow: 1,
-    gap: Spacing.two,
-    maxWidth: MaxContentWidth,
+    gap: AtlasSpacing.two,
+    maxWidth: AtlasLayout.maxContentWidth,
+    ...ledgeShadowWeb(AtlasColors.line, 3),
   },
   brandText: {
     marginRight: 'auto',
+    fontFamily: AtlasFonts.heading,
+    fontSize: 14,
+    color: AtlasColors.inkStrong,
   },
   pressed: {
     opacity: 0.7,
   },
   tabButtonView: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
+    position: 'relative',
+    paddingVertical: AtlasSpacing.one,
+    paddingHorizontal: AtlasSpacing.three,
+    borderRadius: AtlasSpacing.three,
+    alignItems: 'center',
+  },
+  activeNub: {
+    position: 'absolute',
+    top: -AtlasSpacing.two,
+    width: 40,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: AtlasColors.greenDark,
+  },
+  tabLabel: {
+    fontFamily: AtlasFonts.bodySemi,
+  },
+  tabLabelActive: {
+    color: AtlasColors.greenDark,
+  },
+  tabLabelInactive: {
+    color: AtlasColors.gray,
+    opacity: 0.8,
   },
 });

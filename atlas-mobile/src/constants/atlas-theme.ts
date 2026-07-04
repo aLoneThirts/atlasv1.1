@@ -3,6 +3,8 @@
  * Prototipteki (../index.html) CSS değişkenlerinin RN karşılığı.
  */
 
+import { Platform } from 'react-native';
+
 export const AtlasColors = {
   // Ana renkler
   green: '#58CC02',
@@ -90,4 +92,86 @@ export const AtlasFonts = {
   bodySemi: 'Inter_600SemiBold',
   bodyBold: 'Inter_700Bold',
   number: 'Inter_900Black',
+} as const;
+
+/** theme.ts'ten taşınan sistem fontu Platform.select'i — sadece `code` metin tipi kullanıyor */
+export const SystemFonts = Platform.select({
+  ios: {
+    sans: 'system-ui',
+    serif: 'ui-serif',
+    rounded: 'ui-rounded',
+    mono: 'ui-monospace',
+  },
+  default: {
+    sans: 'normal',
+    serif: 'serif',
+    rounded: 'normal',
+    mono: 'monospace',
+  },
+  web: {
+    sans: 'var(--font-display)',
+    serif: 'var(--font-serif)',
+    rounded: 'var(--font-rounded)',
+    mono: 'var(--font-mono)',
+  },
+})!;
+
+/** theme.ts'ten taşınan layout token'ları */
+export const AtlasLayout = {
+  maxContentWidth: 800,
+  bottomTabInset: Platform.select({ ios: 50, android: 80 }) ?? 0,
+} as const;
+
+/** theme.ts'teki Spacing skalasının Atlas karşılığı */
+export const AtlasSpacing = {
+  half: 2,
+  one: 4,
+  two: 8,
+  three: 16,
+  four: 24,
+  five: 32,
+  six: 64,
+} as const;
+
+/**
+ * ThemedText/ThemedView'in kullandığı nötr roller — uygulama ekran bazında koyu/açık
+ * tasarımı sabit kodladığı için tek (light) tema yeterli; theme.ts'teki Colors.light
+ * ile aynı anahtar isimlerini korur (drop-in replacement).
+ */
+export const AtlasNeutral = {
+  text: AtlasColors.inkStrong,
+  textSecondary: AtlasColors.ink,
+  background: AtlasColors.white,
+  backgroundElement: AtlasColors.surface,
+  backgroundSelected: AtlasColors.card,
+} as const;
+
+export type ThemeColor = keyof typeof AtlasNeutral;
+
+/** Duolingo tarzı "flat ledge" gölge — native için shadow/elevation, web için ayrıca boxShadow string'i eklenebilir */
+export function ledgeShadow(color: string, height: number = Press3D.shadowHeight) {
+  return {
+    shadowColor: color,
+    shadowOffset: { width: 0, height },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: height,
+  } as const;
+}
+
+/** RN Web `boxShadow` string karşılığı — piksel-mükemmel web paritesi için ledgeShadow'a ek olarak spread edilebilir */
+export function ledgeShadowWeb(color: string, height: number = Press3D.shadowHeight) {
+  return { boxShadow: `0 ${height}px 0 ${color}` } as const;
+}
+
+/** ThemedText `type` varyantlarının font/size/lineHeight tanımları */
+export const AtlasTypeScale = {
+  heading: { fontFamily: AtlasFonts.heading, fontSize: 28, lineHeight: 34 },
+  title: { fontFamily: AtlasFonts.heading, fontSize: 28, lineHeight: 34 },
+  subtitle: { fontFamily: AtlasFonts.headingBold, fontSize: 20, lineHeight: 26 },
+  default: { fontFamily: AtlasFonts.body, fontSize: 16, lineHeight: 24 },
+  bodySemi: { fontFamily: AtlasFonts.bodySemi, fontSize: 15, lineHeight: 22 },
+  number: { fontFamily: AtlasFonts.number, fontSize: 26, lineHeight: 30 },
+  small: { fontFamily: AtlasFonts.body, fontSize: 14, lineHeight: 20 },
+  smallBold: { fontFamily: AtlasFonts.bodyBold, fontSize: 14, lineHeight: 20 },
 } as const;
