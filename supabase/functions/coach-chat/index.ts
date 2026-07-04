@@ -1,6 +1,6 @@
 // ============================================================
 // ATLAS — coach-chat Edge Function (BACKEND.md §6.3)
-// Gemini anahtarı istemciye ASLA konmaz; bu function proxy'dir.
+// DeepSeek anahtarı istemciye ASLA konmaz; bu function proxy'dir.
 //
 // Input : { message: string }   (kullanıcı JWT'den bellidir)
 // Output: { reply: string }
@@ -11,12 +11,13 @@
 //   3. "Koç Biliyor" bağlamını topla: streak, bugünkü XP, zayıf ders
 //      (son 30 gün en çok yanlış), hedef bölüm, sınava kalan gün,
 //      son deneme netleri, açık yanlış sayısı
-//   4. Son 10 mesajı geçmiş olarak ekle → Gemini Flash
+//   4. Son 10 mesajı geçmiş olarak ekle → DeepSeek (OpenAI uyumlu API)
 //   5. Kullanıcı mesajı + cevabı coach_messages'a yaz, cevabı döndür
 //
 // Deploy: npx supabase functions deploy coach-chat
-// Secret: npx supabase secrets set GEMINI_API_KEY=...
-//         (opsiyonel: GEMINI_MODEL, varsayılan gemini-2.5-flash)
+// Secret: npx supabase secrets set DEEPSEEK_API_KEY=...
+//         (opsiyonel: DEEPSEEK_MODEL, varsayılan deepseek-chat;
+//          deepseek-reasoner koç sohbeti için yavaş/pahalı — gerekmez)
 // ============================================================
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -46,8 +47,8 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
-  const geminiKey = Deno.env.get('GEMINI_API_KEY');
-  if (!geminiKey) return json({ error: 'gemini_key_missing' }, 500);
+  const deepseekKey = Deno.env.get('DEEPSEEK_API_KEY');
+  if (!deepseekKey) return json({ error: 'deepseek_key_missing' }, 500);
 
   const { message } = await req.json().catch(() => ({ message: null }));
   if (!message || typeof message !== 'string' || message.trim().length === 0) {
@@ -134,37 +135,37 @@ Deno.serve(async (req) => {
     '(en fazla 120 kelime), somut ve veriye dayalı öneri ver, öğrenciyi asla azarlama. ' +
     'Emoji kullanabilirsin ama abartma. Aşağıdaki öğrenci verilerine dayan:\n\n' + contextLines;
 
+  // DeepSeek OpenAI uyumlu sohbet formatı kullanır: system/user/assistant
   const history = (historyRes.data ?? []).reverse().map((m) => ({
-    role: m.role === 'coach' ? 'model' : 'user',
-    parts: [{ text: m.content }],
+    role: m.role === 'coach' ? 'assistant' : 'user',
+    content: m.content,
   }));
 
-  const model = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash';
-  const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: [...history, { role: 'user', parts: [{ text: userMessage }] }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 512,
-          thinkingConfig: { thinkingBudget: 0 }, // Flash'ta düşünmeyi kapat: hız + maliyet
-        },
-      }),
-    },
-  );
+  const model = Deno.env.get('DEEPSEEK_MODEL') ?? 'deepseek-chat';
+  const deepseekRes = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${deepseekKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...history,
+        { role: 'user', content: userMessage },
+      ],
+      temperature: 1.0, // DeepSeek önerisi: genel sohbet için ~1.0-1.3
+      max_tokens: 512,
+      stream: false,
+    }),
+  });
 
-  if (!geminiRes.ok) {
-    console.error('Gemini hatası:', geminiRes.status, await geminiRes.text());
+  if (!deepseekRes.ok) {
+    console.error('DeepSeek hatası:', deepseekRes.status, await deepseekRes.text());
     return json({ error: 'coach_unavailable' }, 502);
   }
 
-  const gemini = await geminiRes.json();
+  const deepseek = await deepseekRes.json();
   const reply: string =
-    gemini?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('').trim() ||
+    deepseek?.choices?.[0]?.message?.content?.trim() ||
     'Şu an cevap veremiyorum, birazdan tekrar dener misin? 🙏';
 
   // Sohbet geçmişine yaz (RLS: own coach) — sıra korunsun diye ardışık

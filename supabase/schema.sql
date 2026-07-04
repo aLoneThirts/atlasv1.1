@@ -130,7 +130,7 @@ create table public.xp_events (
 create index xp_events_user_day_idx on public.xp_events (user_id, created_at);
 
 -- ------------------------------------------------------------
--- KOÇ — sohbet + deneme sonuçları (Gemini entegrasyonu Edge Function'da)
+-- KOÇ — sohbet + deneme sonuçları (DeepSeek entegrasyonu Edge Function'da)
 -- ------------------------------------------------------------
 create table public.coach_messages (
   id bigint generated always as identity primary key,

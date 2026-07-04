@@ -35,7 +35,7 @@ npx supabase login
 npx supabase link --project-ref zfhmvlxgrlmripwpawoh
 
 # secret'lar (service role zaten function env'inde otomatik var)
-npx supabase secrets set GEMINI_API_KEY=<AI Studio anahtarın>
+npx supabase secrets set DEEPSEEK_API_KEY=<platform.deepseek.com anahtarın>
 npx supabase secrets set CRON_SECRET=<uzun rastgele bir dize>   # weekly-exam koruması
 
 # deploy
@@ -51,8 +51,9 @@ Dashboard → **Edge Functions → weekly-exam → Schedules** → cron: `0 9 * 
 Elle test: `curl -X POST https://zfhmvlxgrlmripwpawoh.supabase.co/functions/v1/weekly-exam -H "Authorization: Bearer <anon key>" -H "x-cron-secret: <CRON_SECRET>"`
 
 ### 4b. coach-chat notları
-- Gemini anahtarı **istemciye konmaz** — yalnız bu function'ın env'inde.
-- Model: `gemini-2.5-flash` (değiştirmek için `GEMINI_MODEL` secret'ı).
+- DeepSeek anahtarı **istemciye konmaz** — yalnız bu function'ın env'inde.
+- Model: `deepseek-chat` (değiştirmek için `DEEPSEEK_MODEL` secret'ı;
+  `deepseek-reasoner` koç sohbeti için yavaş/pahalı — önerilmez).
 - Premium olmayan kullanıcıya 403 `premium_required` döner; günlük limit 30 mesaj (429).
 - Deneme girişi ayrı uç değil: istemci `mock_exams`e yazar, sonra koça mesaj atar —
   bağlam toplama son denemeyi zaten görür.

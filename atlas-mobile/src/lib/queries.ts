@@ -318,7 +318,7 @@ export async function fetchOpenMistakeCount(): Promise<number> {
 }
 
 /**
- * coach-chat Edge Function — Gemini proxy'si. Hata gövdesindeki kod
+ * coach-chat Edge Function — DeepSeek proxy'si. Hata gövdesindeki kod
  * ('premium_required' | 'rate_limited' | ...) Error.message olarak fırlatılır.
  */
 export async function sendCoachMessage(message: string): Promise<string> {

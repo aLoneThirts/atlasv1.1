@@ -25,7 +25,7 @@ import type { CoachMessage, Profile } from '@/lib/types';
 
 /**
  * EKRAN 11 — Koç — prototip: index.html #scr-coach
- * Gemini'ye coach-chat Edge Function üzerinden gidilir (anahtar istemcide yok).
+ * DeepSeek'e coach-chat Edge Function üzerinden gidilir (anahtar istemcide yok).
  * Koç premium özelliğidir (§4.9) — ücretsiz kullanıcı kilit ekranı görür.
  */
 export default function CoachScreen() {

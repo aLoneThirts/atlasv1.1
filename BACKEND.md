@@ -22,7 +22,7 @@ fetheder; konular quiz'lerle geçilir, tüm dersler bitince "TYT Ana Kalesi" dü
 | Mobil | React Native + Expo SDK 57 (`atlas-mobile/`) |
 | Backend | Supabase — PostgreSQL + Auth + Edge Functions |
 | Build | EAS Build (Mac'siz iOS derleme) |
-| AI Koç | Gemini Flash (sohbet) + Gemini Flash Lite (bildirim metinleri) |
+| AI Koç | DeepSeek `deepseek-chat` (OpenAI uyumlu API) — brief Gemini diyordu, karar değişti |
 | Push | Expo Push Notifications |
 
 **Monetizasyon:** Sadece **Tarih dersi ücretsiz**. Premium = diğer tüm dersler
@@ -201,10 +201,10 @@ Adımlar (tek transaction):
         "data": { "route": "/yanlislar/haftalik" } }]
      ```
   5. `notified_at = now()`.
-- Bildirim metnini kişiselleştirmek istenirse Gemini **Flash Lite** kullan (opsiyonel v2).
+- Bildirim metnini kişiselleştirmek istenirse `deepseek-chat` ile üret (opsiyonel v2).
 
 ### 6.3 Edge Function: `coach-chat`
-Gemini anahtarı istemciye ASLA konmaz; bu function proxy'dir.
+DeepSeek anahtarı istemciye ASLA konmaz; bu function proxy'dir.
 - Input: `{ message: string }` (JWT'den kullanıcı belli).
 - Akış:
   1. Kullanıcı bağlamını topla ("Koç Biliyor" çipleri — prototipteki gibi):
@@ -213,7 +213,7 @@ Gemini anahtarı istemciye ASLA konmaz; bu function proxy'dir.
      son deneme netleri (`mock_exams` son satır).
   2. Sistem prompt'u: motive edici, samimi, Türkçe konuşan YKS koçu; kale/fetih
      metaforunu kullanır; kısa (≤120 kelime) cevap verir; veriye dayalı öneri yapar.
-  3. Son ~10 mesajı `coach_messages`ten geçmiş olarak ekle → **Gemini Flash** çağır.
+  3. Son ~10 mesajı `coach_messages`ten geçmiş olarak ekle → **DeepSeek** (`deepseek-chat`, OpenAI uyumlu `/chat/completions`) çağır.
   4. Kullanıcı mesajını ve cevabı `coach_messages`e yaz, cevabı döndür.
 - Rate limit ÖNERİSİ: kullanıcı başına 30 mesaj/gün (basit sayaç sorgusu).
 - Deneme girişi ayrı uç değil: istemci `mock_exams`e yazar, sonra coach-chat'e
@@ -243,7 +243,7 @@ ekibi/editör işi.
 - Tüm kullanıcı yazmaları RLS'den geçer; `finish_quiz` gibi RPC'ler
   `security definer` + `auth.uid()` kullanır — user_id parametre olarak alınmaz.
 - İçerik tabloları istemciden yazılamaz (seed dashboard/service_role ile).
-- Gemini API anahtarı yalnız `coach-chat` function env'inde.
+- DeepSeek API anahtarı yalnız `coach-chat` function env'inde.
 - Premium kontrolü istemciye bırakılmaz: koç, haftalık sınav ve premium ders
   içeriği server tarafında da `is_premium` / `subjects.is_free` ile doğrulanır.
   (İçerik gating v1'de: premium olmayan kullanıcıya `is_free=false` derslerin
