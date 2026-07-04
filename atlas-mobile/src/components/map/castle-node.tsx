@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { GlowHalo } from '@/components/ui/glow-halo';
 import { ProgressBar } from '@/components/ui/progress-bar';
-import { AtlasColors, AtlasFonts } from '@/constants/atlas-theme';
+import { PulsingBadge } from '@/components/ui/animated/pulsing-badge';
+import { AtlasColors, AtlasFonts, ledgeShadow, ledgeShadowWeb } from '@/constants/atlas-theme';
 import type { CastleViewModel } from '@/lib/map-progress';
 
 import { castleXY } from './map-layout';
@@ -11,10 +12,27 @@ import { castleXY } from './map-layout';
 const ICON_SIZE = 64;
 const NODE_WIDTH = 84;
 
-/** Tek bir ders kalesi — konumu radyal düzenden gelir */
-export function CastleNode({ castle, index, total }: { castle: CastleViewModel; index: number; total: number }) {
+/**
+ * Tek bir ders kalesi — konumu radyal düzenden (referans 393x852 uzayı) gelir,
+ * gerçek piksele `scale` ile taşınır. İkon/rozet boyutları sabit kalır (scale
+ * aralığı dar — ~0.85-1.17 — boyutu da ölçeklemek gözle fark edilmeyecek kadar
+ * küçük bir kazanç ama karmaşıklık ekler).
+ */
+export function CastleNode({
+  castle,
+  index,
+  total,
+  scale,
+}: {
+  castle: CastleViewModel;
+  index: number;
+  total: number;
+  scale: number;
+}) {
   const router = useRouter();
   const { x, y } = castleXY(index, total);
+  const px = x * scale;
+  const py = y * scale;
   const { subject, frac, state } = castle;
   const locked = state === 'locked';
   const done = state === 'done';
@@ -24,16 +42,26 @@ export function CastleNode({ castle, index, total }: { castle: CastleViewModel; 
     router.push({ pathname: '/kale/[subjectId]', params: { subjectId: subject.id } } as never);
   };
 
+  const active = state === 'active';
+  const elevated = Platform.OS === 'web' ? ledgeShadowWeb(subject.color_dark, 4) : ledgeShadow(subject.color_dark, 4);
+
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.wrapper, { left: x - NODE_WIDTH / 2, top: y - ICON_SIZE / 2 - 8, width: NODE_WIDTH }]}>
+      style={[styles.wrapper, { left: px - NODE_WIDTH / 2, top: py - ICON_SIZE / 2 - 8, width: NODE_WIDTH }]}>
       {done && <Text style={styles.alindi}>ALINDI!</Text>}
+      {active && (
+        <PulsingBadge style={styles.fethetWrap}>
+          <Text style={styles.fethet}>FETHET!</Text>
+        </PulsingBadge>
+      )}
       <View style={styles.iconSlot}>
-        {done && <GlowHalo color={subject.color} size={ICON_SIZE} opacity={0.8} />}
+        <View style={styles.groundShadow} />
+        {(done || active) && <GlowHalo color={subject.color} size={ICON_SIZE} opacity={done ? 0.8 : 0.6} />}
         <View
           style={[
             styles.icon,
+            !locked && elevated,
             {
               backgroundColor: subject.color,
               borderColor: subject.color_dark,
@@ -63,6 +91,26 @@ export function CastleNode({ castle, index, total }: { castle: CastleViewModel; 
 const styles = StyleSheet.create({
   wrapper: { position: 'absolute', alignItems: 'center' },
   iconSlot: { alignItems: 'center', justifyContent: 'center' },
+  groundShadow: {
+    position: 'absolute',
+    bottom: -6,
+    width: ICON_SIZE * 0.8,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  fethetWrap: { position: 'absolute', top: -34, zIndex: 3 },
+  fethet: {
+    backgroundColor: AtlasColors.orange,
+    color: AtlasColors.white,
+    fontSize: 9.5,
+    fontFamily: AtlasFonts.heading,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 999,
+    overflow: 'hidden',
+    textAlign: 'center',
+  },
   icon: {
     width: ICON_SIZE,
     height: ICON_SIZE,

@@ -148,6 +148,30 @@ export const AtlasNeutral = {
 
 export type ThemeColor = keyof typeof AtlasNeutral;
 
+/**
+ * Açık/koyu yüzey paleti — yalnız "açık zemin" ekranlar (Ev, Yanlışlarım, Kale)
+ * karanlık moda tepki verir; zaten koyu tasarlanmış ekranlar (Quiz, Koç, Giriş,
+ * Harita) her iki modda da aynı kalır.
+ */
+export const AtlasSurface = {
+  light: {
+    bg: AtlasColors.surface,
+    card: AtlasColors.white,
+    cardBorder: AtlasColors.line,
+    text: AtlasColors.inkStrong,
+    textSecondary: AtlasColors.gray,
+  },
+  dark: {
+    bg: '#0F131A',
+    card: '#1A2029',
+    cardBorder: '#2A3140',
+    text: '#F2F3F5',
+    textSecondary: '#8B95A5',
+  },
+} as const;
+
+export type SurfaceMode = keyof typeof AtlasSurface;
+
 /** Duolingo tarzı "flat ledge" gölge — native için shadow/elevation, web için ayrıca boxShadow string'i eklenebilir */
 export function ledgeShadow(color: string, height: number = Press3D.shadowHeight) {
   return {

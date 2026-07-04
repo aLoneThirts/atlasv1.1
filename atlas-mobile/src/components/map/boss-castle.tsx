@@ -17,17 +17,23 @@ import { MAP_CX, MAP_CY } from './map-layout';
 
 const BOSS_BOX = 118;
 
-/** Ana Kale — statik PNG üzerine nefes alma + altın parıltı katmanlarıyla "canlı" his */
+/**
+ * Ana Kale — statik PNG üzerine nefes alma + altın parıltı katmanlarıyla "canlı" his.
+ * Konumu referans (393x852) uzayındaki MAP_CX/MAP_CY'den `scale` ile gerçek piksele taşınır
+ * — böylece harita kutusunun gerçek genişliği ne olursa olsun tam ortada kalır.
+ */
 export function BossCastle({
   overallFrac,
   doneCount,
   totalCount,
   litSubjects,
+  scale,
 }: {
   overallFrac: number;
   doneCount: number;
   totalCount: number;
   litSubjects: boolean[];
+  scale: number;
 }) {
   const baseScale = useSharedValue(0.78 + 0.45 * overallFrac);
   const breatheScale = useSharedValue(1);
@@ -96,8 +102,11 @@ export function BossCastle({
     transform: [{ scale: breatheScale.value }],
   }));
 
+  const cx = MAP_CX * scale;
+  const cy = MAP_CY * scale;
+
   return (
-    <View style={[styles.wrapper, { left: MAP_CX - BOSS_BOX / 2, top: MAP_CY - BOSS_BOX / 2 - 30 }]}>
+    <View style={[styles.wrapper, { left: cx - BOSS_BOX / 2, top: cy - BOSS_BOX / 2 - 30 }]}>
       <Animated.View style={outerStyle}>
         <Animated.View style={innerStyle}>
           <GlowHalo color="#FFD700" size={BOSS_BOX} opacity={glowOpacity} />

@@ -33,22 +33,27 @@ const TREES: { x?: number; right?: number; y: number; size: number; emoji: strin
   { x: 180, y: 660, size: 18, emoji: '🌲' },
 ];
 
-/** Harita süslemeleri — parıldayan yıldızlar, sürüklenen bulutlar, sabit ağaçlar */
-export function MapDecorations() {
+/** Harita süslemeleri — parıldayan yıldızlar, sürüklenen bulutlar, sabit ağaçlar (konumlar referans-uzayından gerçek piksele `scale` ile taşınır) */
+export function MapDecorations({ scale }: { scale: number }) {
   return (
     <>
       {STARS.map((s, i) => (
-        <Star key={i} x={s.x} y={s.y} delay={i * 400} />
+        <Star key={i} x={s.x * scale} y={s.y * scale} delay={i * 400} />
       ))}
       {CLOUDS.map((c, i) => (
-        <Cloud key={i} x={c.x} y={c.y} size={c.size} delay={i * 2000} />
+        <Cloud key={i} x={c.x * scale} y={c.y * scale} size={c.size} delay={i * 2000} />
       ))}
       {TREES.map((t, i) => (
         <Text
           key={i}
           style={[
             styles.tree,
-            { fontSize: t.size, top: t.y, left: t.x, right: t.right },
+            {
+              fontSize: t.size,
+              top: t.y * scale,
+              left: t.x !== undefined ? t.x * scale : undefined,
+              right: t.right !== undefined ? t.right * scale : undefined,
+            },
           ]}>
           {t.emoji}
         </Text>

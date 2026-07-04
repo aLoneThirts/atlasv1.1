@@ -8,7 +8,9 @@ import type {
   CoachMessage,
   ContinueTarget,
   FinishQuizResult,
+  Flashcard,
   MistakeItem,
+  MockExamNets,
   Profile,
   Question,
   QuizAnswer,
@@ -337,4 +339,44 @@ export async function sendCoachMessage(message: string): Promise<string> {
     throw new Error(code);
   }
   return (data as { reply: string }).reply;
+}
+
+/** Deneme sonucu kaydı — koç bunu bir sonraki mesajında bağlam olarak görür (BACKEND.md §6.3). */
+export async function saveMockExam(nets: MockExamNets, notes?: string): Promise<void> {
+  const { error } = await supabase.from('mock_exams').insert({ nets, notes: notes ?? null });
+  if (error) throw error;
+}
+
+/* ------------------------------------------------------------
+   Bilgi kartları (flashcards) — yalnız 'done' konularda açılır (§4.8)
+------------------------------------------------------------ */
+
+export async function fetchFlashcardsByTopic(topicId: string): Promise<Flashcard[]> {
+  const { data, error } = await supabase
+    .from('flashcards')
+    .select('id, topic_id, prompt, answer, accepted_answers, explanation')
+    .eq('topic_id', topicId);
+  if (error) throw error;
+  return (data ?? []) as Flashcard[];
+}
+
+/**
+ * Yazılı cevap eşleştirme — prototip `normTr` + `checkCard` birebir port (BACKEND.md §4.8).
+ * Türkçe küçük harfe çevirir, yalnız a-zçğıöşü0-9 boşluk nokta bırakır, boşlukları teklemer.
+ */
+export function normTr(s: string): string {
+  return (s || '')
+    .toLocaleLowerCase('tr')
+    .replace(/[^a-zçğıöşü0-9\s.]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function checkFlashcardAnswer(input: string, acceptedAnswers: string[]): boolean {
+  const ni = normTr(input);
+  if (!ni) return false;
+  return acceptedAnswers.some((k) => {
+    const nk = normTr(k);
+    return ni === nk || ni.includes(nk) || (ni.length >= 3 && nk.includes(ni) && ni.length >= nk.length * 0.6);
+  });
 }

@@ -9,9 +9,10 @@ import { Card } from '@/components/ui/card';
 import { HeartsRow } from '@/components/ui/hearts-row';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { FireBadge } from '@/components/ui/animated/fire-badge';
-import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
+import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
 import { fetchContinueTarget, fetchOpenMistakeCount, fetchProfile, fetchXpToday } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
+import { useThemeMode } from '@/lib/theme-context';
 import type { ContinueTarget, Profile } from '@/lib/types';
 
 /**
@@ -20,6 +21,8 @@ import type { ContinueTarget, Profile } from '@/lib/types';
  */
 export default function HomeScreen() {
   const router = useRouter();
+  const { mode, toggle } = useThemeMode();
+  const surface = AtlasSurface[mode];
   const [profile, setProfile] = useState<Profile | null>(null);
   const [xpToday, setXpToday] = useState(0);
   const [target, setTarget] = useState<ContinueTarget | null>(null);
@@ -64,7 +67,7 @@ export default function HomeScreen() {
   const xpPct = goal > 0 ? Math.min(1, xpToday / goal) : 0;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: surface.bg }]}>
       <SafeAreaView style={styles.safe}>
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -75,11 +78,19 @@ export default function HomeScreen() {
             </View>
             <View style={styles.headerText}>
               <Text style={styles.hello}>{greeting}</Text>
-              <Text style={styles.name}>{name}</Text>
+              <Text style={[styles.name, { color: surface.text }]}>{name}</Text>
             </View>
-            <Pressable onPress={() => supabase.auth.signOut()} hitSlop={10}>
-              <Text style={styles.logout}>Çıkış</Text>
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={toggle}
+                hitSlop={10}
+                style={[styles.modeBtn, { backgroundColor: surface.card, borderColor: surface.cardBorder }]}>
+                <Text style={styles.modeBtnIcon}>{mode === 'dark' ? '☀️' : '🌙'}</Text>
+              </Pressable>
+              <Pressable onPress={() => supabase.auth.signOut()} hitSlop={10}>
+                <Text style={styles.logout}>Çıkış</Text>
+              </Pressable>
+            </View>
           </View>
 
           {error && <Text style={styles.error}>{error}</Text>}
@@ -87,25 +98,27 @@ export default function HomeScreen() {
           <View style={styles.statRow}>
             <Card style={styles.statCard}>
               <FireBadge size={22} />
-              <Text style={styles.statNum}>{profile?.streak_count ?? 0}</Text>
-              <Text style={styles.statLabel}>Günlük Seri</Text>
+              <Text style={[styles.statNum, { color: surface.text }]}>{profile?.streak_count ?? 0}</Text>
+              <Text style={[styles.statLabel, { color: surface.textSecondary }]}>Günlük Seri</Text>
             </Card>
             <Card style={styles.statCard}>
               <HeartsRow hearts={profile?.hearts ?? 5} size={16} />
-              <Text style={styles.statNum}>{profile?.is_premium ? '∞' : (profile?.hearts ?? 5)}</Text>
-              <Text style={styles.statLabel}>Can</Text>
+              <Text style={[styles.statNum, { color: surface.text }]}>
+                {profile?.is_premium ? '∞' : (profile?.hearts ?? 5)}
+              </Text>
+              <Text style={[styles.statLabel, { color: surface.textSecondary }]}>Can</Text>
             </Card>
           </View>
 
           <Card style={styles.goalCard}>
             <View style={styles.goalHead}>
-              <Text style={styles.goalTitle}>Günlük Hedef</Text>
+              <Text style={[styles.goalTitle, { color: surface.text }]}>Günlük Hedef</Text>
               <Text style={styles.goalPct}>
                 {xpToday}/{goal} XP
               </Text>
             </View>
             <ProgressBar progress={xpPct} height={12} />
-            <Text style={styles.goalHint}>
+            <Text style={[styles.goalHint, { color: surface.textSecondary }]}>
               {xpPct >= 1
                 ? 'Hedef tamam — kale duvarları bugün de yükseldi! 🏰'
                 : `Hedefe ${Math.max(0, goal - xpToday)} XP kaldı. Bir konu ≈ 45 XP.`}
@@ -188,6 +201,16 @@ const styles = StyleSheet.create({
   avatarText: { color: AtlasColors.white, fontSize: 20, fontFamily: AtlasFonts.heading },
   hello: { color: AtlasColors.gray, fontSize: 11, fontFamily: AtlasFonts.bodyBold },
   name: { color: AtlasColors.inkStrong, fontSize: 17, fontFamily: AtlasFonts.heading },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  modeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeBtnIcon: { fontSize: 15 },
   logout: { color: AtlasColors.gray, fontSize: 12, fontFamily: AtlasFonts.bodyBold },
   error: {
     color: AtlasColors.redDark,

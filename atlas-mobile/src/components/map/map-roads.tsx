@@ -4,13 +4,18 @@ import Svg, { Line } from 'react-native-svg';
 import { MAP_REF_HEIGHT, MAP_REF_WIDTH, castleXY, roadStart } from './map-layout';
 import type { CastleViewModel } from '@/lib/map-progress';
 
-/** Ana kaleden her derse giden altın kesik-çizgili yollar */
-export function MapRoads({ castles }: { castles: CastleViewModel[] }) {
+/**
+ * Ana kaleden her derse giden altın kesik-çizgili yollar.
+ * SVG viewBox referans (393x852) koordinat uzayında kalır, width/height gerçek
+ * piksele ölçeklenir — vektör olduğu için pikselleşme/hizalama sorunu olmaz.
+ */
+export function MapRoads({ castles, scale }: { castles: CastleViewModel[]; scale: number }) {
   const total = castles.length;
   return (
     <Svg
-      width={MAP_REF_WIDTH}
-      height={MAP_REF_HEIGHT}
+      width={MAP_REF_WIDTH * scale}
+      height={MAP_REF_HEIGHT * scale}
+      viewBox={`0 0 ${MAP_REF_WIDTH} ${MAP_REF_HEIGHT}`}
       style={{ position: 'absolute', left: 0, top: 0 }}>
       {castles.map((c, i) => {
         const { x: x1, y: y1 } = roadStart(i, total);

@@ -14,7 +14,7 @@ export function Pill({
 }) {
   return (
     <View style={[styles.pill, { backgroundColor: color }]}>
-      {typeof children === 'string' ? <Text style={[styles.text, { color: textColor }]}>{children}</Text> : children}
+      <Text style={[styles.text, { color: textColor }]}>{children}</Text>
     </View>
   );
 }

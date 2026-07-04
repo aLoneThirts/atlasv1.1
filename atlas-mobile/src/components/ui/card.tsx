@@ -1,11 +1,16 @@
 import { Platform, StyleSheet, View, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
 
-import { AtlasColors, AtlasRadius, ledgeShadow, ledgeShadowWeb } from '@/constants/atlas-theme';
+import { AtlasRadius, AtlasSurface, ledgeShadow, ledgeShadowWeb } from '@/constants/atlas-theme';
+import { useThemeMode } from '@/lib/theme-context';
 
 export function Card({ style, children, ...rest }: ViewProps & { style?: StyleProp<ViewStyle> }) {
-  const shadow = Platform.OS === 'web' ? ledgeShadowWeb(AtlasColors.line, 3) : ledgeShadow(AtlasColors.line, 3);
+  const { mode } = useThemeMode();
+  const surface = AtlasSurface[mode];
+  const shadow = Platform.OS === 'web' ? ledgeShadowWeb(surface.cardBorder, 3) : ledgeShadow(surface.cardBorder, 3);
   return (
-    <View style={[styles.card, shadow, style]} {...rest}>
+    <View
+      style={[styles.card, { backgroundColor: surface.card, borderColor: surface.cardBorder }, shadow, style]}
+      {...rest}>
       {children}
     </View>
   );
@@ -13,9 +18,7 @@ export function Card({ style, children, ...rest }: ViewProps & { style?: StylePr
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: AtlasColors.white,
     borderWidth: 2,
-    borderColor: AtlasColors.line,
     borderRadius: AtlasRadius.card,
     padding: 16,
   },

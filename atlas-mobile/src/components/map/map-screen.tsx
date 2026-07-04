@@ -56,22 +56,17 @@ export function MapScreen() {
         {error && <Text style={styles.error}>{error}</Text>}
 
         <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
-          <View style={{ width: deviceWidth, height: MAP_REF_HEIGHT * scale, alignItems: 'center' }}>
-            <View
-              style={{
-                width: MAP_REF_WIDTH,
-                height: MAP_REF_HEIGHT,
-                transform: [{ scale }],
-                transformOrigin: 'top center',
-              }}>
-              <MapDecorations />
-              {castles && <MapRoads castles={castles} />}
+          <View style={{ width: deviceWidth, alignItems: 'center' }}>
+            <View style={{ width: MAP_REF_WIDTH * scale, height: MAP_REF_HEIGHT * scale }}>
+              <MapDecorations scale={scale} />
+              {castles && <MapRoads castles={castles} scale={scale} />}
               {castles &&
                 castles.map((c, i) => (
-                  <CastleNode key={c.subject.id} castle={c} index={i} total={castles.length} />
+                  <CastleNode key={c.subject.id} castle={c} index={i} total={castles.length} scale={scale} />
                 ))}
               {castles && (
                 <BossCastle
+                  scale={scale}
                   overallFrac={overallFrac}
                   doneCount={doneCount}
                   totalCount={castles.length}

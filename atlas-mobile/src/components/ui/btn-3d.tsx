@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { isValidElement, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -75,10 +75,10 @@ export function Btn3D({
           },
           innerStyle,
         ]}>
-        {typeof children === 'string' ? (
-          <Text style={[styles.text, small && styles.textSmall, { color: v.text }]}>{children}</Text>
-        ) : (
+        {isValidElement(children) ? (
           children
+        ) : (
+          <Text style={[styles.text, small && styles.textSmall, { color: v.text }]}>{children}</Text>
         )}
       </Animated.View>
     </Pressable>

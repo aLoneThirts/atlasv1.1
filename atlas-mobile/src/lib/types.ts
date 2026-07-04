@@ -113,3 +113,15 @@ export type ContinueTarget = {
   topicId: string;
   topicTitle: string;
 };
+
+export type Flashcard = {
+  id: string;
+  topic_id: string;
+  prompt: string;
+  answer: string;
+  accepted_answers: string[];
+  explanation: string | null;
+};
+
+/** mock_exams.nets — ders adı -> net sayısı, örn. {"Türkçe": 32.5, "Tarih": 7} */
+export type MockExamNets = Record<string, number>;
