@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useCallback, useRef, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -63,6 +63,7 @@ function uid(): string {
  */
 export default function CoachScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -83,8 +84,6 @@ export default function CoachScreen() {
     fen: '',
   });
   const [denemeWarn, setDenemeWarn] = useState(false);
-
-  const [upsellNote, setUpsellNote] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const loadedRef = useRef(false);
@@ -271,10 +270,9 @@ export default function CoachScreen() {
             Yapay zekâ koçun; serini, netlerini ve zayıf derslerini görüp sana özel plan çıkarır,
             moral verir ve deneme sonuçlarını yorumlar.
           </Text>
-          <Btn3D variant="purple" onPress={() => setUpsellNote(true)}>
+          <Btn3D variant="purple" onPress={() => router.push('/premium')}>
             Premium&apos;a Geç
           </Btn3D>
-          {upsellNote && <Text style={styles.lockNote}>Ödeme entegrasyonu yakında ✨</Text>}
         </View>
       </View>
     );
@@ -469,7 +467,6 @@ const styles = StyleSheet.create({
     fontFamily: AtlasFonts.bodySemi,
     marginBottom: 6,
   },
-  lockNote: { color: AtlasColors.purple, fontSize: 12.5, fontFamily: AtlasFonts.bodyBold, marginTop: 4 },
 
   /* Header */
   header: {

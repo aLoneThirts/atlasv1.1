@@ -96,6 +96,7 @@ export default function WeeklyIntroScreen() {
 }
 
 function Locked({ back }: { back: () => void }) {
+  const router = useRouter();
   return (
     <View style={styles.stateBox}>
       <Image source={require('@/assets/images/atlas/mascot-wave.png')} style={styles.mascot} contentFit="contain" />
@@ -104,6 +105,9 @@ function Locked({ back }: { back: () => void }) {
         Haftanın yanlışlarından hazırlanan mini sınav Atlas Premium&apos;a özel bir özellik.
       </Text>
       <View style={styles.btnStack}>
+        <Btn3D variant="purple" onPress={() => router.push('/premium')}>
+          Premium&apos;a Geç
+        </Btn3D>
         <Btn3D variant="ghost" onPress={back}>
           Geri Dön
         </Btn3D>

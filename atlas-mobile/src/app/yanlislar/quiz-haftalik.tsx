@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
@@ -12,6 +12,7 @@ import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
 import { fetchCurrentWeeklyExam, fetchProfile, fetchQuestionsByIds, finishQuiz } from '@/lib/queries';
+import { buyHeartRefill } from '@/lib/purchases';
 import type { FinishQuizResult, Question, QuizAnswer } from '@/lib/types';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
@@ -28,9 +29,9 @@ export default function WeeklyQuizScreen() {
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [isPremium, setIsPremium] = useState(false);
   const [startHearts, setStartHearts] = useState(5);
   const [localHearts, setLocalHearts] = useState(5);
+  const [buyingHearts, setBuyingHearts] = useState(false);
 
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -55,7 +56,6 @@ export default function WeeklyQuizScreen() {
           return;
         }
         setQuestions(qs);
-        setIsPremium(profile.is_premium);
         setStartHearts(profile.hearts);
         setLocalHearts(profile.hearts);
         setPhase('quiz');
@@ -88,13 +88,12 @@ export default function WeeklyQuizScreen() {
       setCorrectCount((c) => c + 1);
     } else {
       setWrongCount((w) => w + 1);
-      if (!isPremium) setLocalHearts((h) => Math.max(0, h - 1));
+      setLocalHearts((h) => Math.max(0, h - 1));
     }
   };
 
   const onContinue = async () => {
-    const outOfHearts = !isPremium && localHearts <= 0;
-    if (outOfHearts) {
+    if (localHearts <= 0) {
       setPhase('hearts-empty');
       return;
     }
@@ -117,6 +116,31 @@ export default function WeeklyQuizScreen() {
   };
 
   const toMistakes = () => router.replace('/yanlislar' as never);
+
+  const buyHearts = () => {
+    Alert.alert(
+      '🚧 Test modu',
+      'Gerçek ödeme entegrasyonu henüz yok — mağaza hesapları hazır olunca gerçek satın almaya bağlanacak. Şimdilik canını hemen dolduralım mı?',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Canı Doldur',
+          onPress: async () => {
+            setBuyingHearts(true);
+            const res = await buyHeartRefill();
+            setBuyingHearts(false);
+            if (res.ok) {
+              setStartHearts(res.hearts);
+              setLocalHearts(res.hearts);
+              setPhase('quiz');
+            } else {
+              Alert.alert('Olmadı', res.error);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   if (phase === 'loading') {
     return (
@@ -147,6 +171,9 @@ export default function WeeklyQuizScreen() {
             Sınavı tamamlayacak canın kalmadı.{'\n'}Biraz dinlen, sonra tekrar dene!
           </Text>
           <View style={styles.btnStack}>
+            <Btn3D variant="yellow" onPress={buyHearts} disabled={buyingHearts}>
+              {buyingHearts ? '...' : '❤️ Can Satın Al'}
+            </Btn3D>
             <Btn3D variant="blue" onPress={toMistakes}>
               Yanlışlara Dön
             </Btn3D>
@@ -162,7 +189,7 @@ export default function WeeklyQuizScreen() {
   if (phase === 'result' && result) {
     const perfect = correctCount === total;
     const goodRun = correctCount >= total - 1;
-    const heartsLeft = isPremium ? startHearts : result.hearts_left;
+    const heartsLeft = result.hearts_left;
     return (
       <View style={styles.resultBg}>
         <Confetti fire={goodRun} />
@@ -178,7 +205,7 @@ export default function WeeklyQuizScreen() {
           <View style={styles.statGrid}>
             <StatBox emoji="🎯" value={`${correctCount}/${total}`} label="DOĞRU" color={AtlasColors.greenDark} />
             <StatBox emoji="❌" value={`${wrongCount}`} label="YANLIŞ" color={AtlasColors.red} />
-            <StatBox emoji="❤️" value={isPremium ? '∞' : `${heartsLeft}/5`} label="CAN" color={AtlasColors.red} />
+            <StatBox emoji="❤️" value={`${heartsLeft}/5`} label="CAN" color={AtlasColors.red} />
             <StatBox emoji="💫" value={`+${result.xp_earned} XP`} label="KAZANILAN" color={AtlasColors.blue} />
           </View>
 
@@ -207,7 +234,7 @@ export default function WeeklyQuizScreen() {
           <View style={styles.quizBarWrap}>
             <ProgressBar progress={Math.max(0.06, index / total)} height={10} color={AtlasColors.purple} trackColor="rgba(255,255,255,0.15)" />
           </View>
-          <HeartsRow hearts={isPremium ? 5 : localHearts} size={16} />
+          <HeartsRow hearts={localHearts} size={16} />
         </View>
 
         <ScrollView contentContainerStyle={styles.quizScroll}>
@@ -263,7 +290,7 @@ export default function WeeklyQuizScreen() {
               />
             </MascotPop>
             <Text style={styles.fbHead}>{good ? '✅ Mükemmel!' : `❌ Doğru: ${LETTERS[question.correct_index]}`}</Text>
-            {!good && <HeartsRow hearts={isPremium ? 5 : localHearts} size={16} />}
+            {!good && <HeartsRow hearts={localHearts} size={16} />}
             {question.explanation && <Text style={styles.fbExp}>{question.explanation}</Text>}
             <Btn3D variant={good ? 'green' : 'red'} onPress={onContinue} disabled={submitting}>
               {submitting ? '...' : 'Devam Et'}

@@ -122,8 +122,9 @@ begin
     end loop;
   end if;
 
-  -- 3) can düşme — premium sınırsız (§4.1); flashcards can yakmaz
-  if not v_premium and p_mode <> 'flashcards' and v_wrong > 0 then
+  -- 3) can düşme — herkes için geçerli (premium artık sınırsız can vermiyor,
+  -- ekstra can parayla satın alınıyor — bkz. hearts.sql refill_hearts); flashcards can yakmaz
+  if p_mode <> 'flashcards' and v_wrong > 0 then
     v_hearts := greatest(0, v_hearts - v_wrong);
     update profiles set hearts = v_hearts, hearts_updated_at = now() where id = v_user;
   end if;

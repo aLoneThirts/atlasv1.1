@@ -82,6 +82,12 @@ export default function HomeScreen() {
             </View>
             <View style={styles.headerActions}>
               <Pressable
+                onPress={() => router.push('/ayarlar')}
+                hitSlop={10}
+                style={[styles.modeBtn, { backgroundColor: surface.card, borderColor: surface.cardBorder }]}>
+                <Text style={styles.modeBtnIcon}>⚙️</Text>
+              </Pressable>
+              <Pressable
                 onPress={toggle}
                 hitSlop={10}
                 style={[styles.modeBtn, { backgroundColor: surface.card, borderColor: surface.cardBorder }]}>
@@ -103,9 +109,7 @@ export default function HomeScreen() {
             </Card>
             <Card style={styles.statCard}>
               <HeartsRow hearts={profile?.hearts ?? 5} size={16} />
-              <Text style={[styles.statNum, { color: surface.text }]}>
-                {profile?.is_premium ? '∞' : (profile?.hearts ?? 5)}
-              </Text>
+              <Text style={[styles.statNum, { color: surface.text }]}>{profile?.hearts ?? 5}</Text>
               <Text style={[styles.statLabel, { color: surface.textSecondary }]}>Can</Text>
             </Card>
           </View>

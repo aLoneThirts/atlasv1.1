@@ -13,17 +13,26 @@ import { ThemeModeProvider } from '@/lib/theme-context';
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
-  const { session, initializing } = useAuth();
+  const { session, initializing, onboardingCompleted } = useAuth();
 
-  // İlk oturum okuması bitene kadar native splash ekranda kalır
+  // İlk oturum okuması bitene kadar, oturum varsa da profilin onboarding
+  // durumu gelene kadar native splash ekranda kalır (yanlış ekrana sıçramasın)
   if (initializing) return null;
+  if (session && onboardingCompleted === null) return null;
 
   return (
     <>
       <AnimatedSplashOverlay />
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Protected guard={!!session}>
+        <Stack.Protected guard={!!session && onboardingCompleted === true}>
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="ayarlar" />
+          <Stack.Screen name="premium" />
+          <Stack.Screen name="reklamsiz" />
+          <Stack.Screen name="puan-hesapla" />
+        </Stack.Protected>
+        <Stack.Protected guard={!!session && onboardingCompleted === false}>
+          <Stack.Screen name="onboarding" />
         </Stack.Protected>
         <Stack.Protected guard={!session}>
           <Stack.Screen name="giris" />

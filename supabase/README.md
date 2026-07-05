@@ -12,9 +12,33 @@ Dashboard → **SQL Editor** → dosya içeriğini yapıştır → Run. **Sıra 
 | 1 | `schema.sql` | 13 tablo + RLS + ders seed'leri | ✅ yüklendi |
 | 2 | `finish_quiz.sql` | Atomik quiz bitirme RPC'si (BACKEND.md §6.1) | ⬜ çalıştır |
 | 3 | `seed_tarih.sql` | Tarih 6 konu/30 soru/12 kart + Coğrafya-Felsefe test içeriği | ⬜ çalıştır |
+| 4 | `username.sql` | username benzersizliği + kayıt formu desteği | ⬜ çalıştır |
+| 5 | `onboarding.sql` | `profiles.onboarding_completed` kolonu (hedef okul/bölüm ekranı) | ⬜ çalıştır |
+| 6 | `hearts.sql` | `refill_hearts()` RPC — ücretli can doldurma | ⬜ çalıştır |
+| 7 | `monetization.sql` | `ads_removed` kolonu + kolon bazlı yazma kilidi + premium/reklamsız placeholder RPC'leri | ⬜ çalıştır |
+| 8 | `yks_programs.sql` | YÖK Atlas lisans program verisi (`yks_programs`+`yks_program_stats`) — scraper: `tools/yokatlas-scraper/` | ✅ yüklendi (12.063 program, 32.225 stat satırı, 2023-2025) |
+| 9 | `score_rank_distribution.sql` | Puan-sıra dağılımı VIEW'ı (yks_program_stats üzerinden, ayrı scraper gerekmedi) | ✅ yüklendi |
+| 10 | `score_coefficients.sql` | ÖSYM puan hesaplama şeması (`score_coefficients` placeholder katsayılar + `user_exam_results`) | ✅ yüklendi |
+| 11 | `profile-names.sql` | `first_name`/`last_name` kolonları + Google girişinde de kullanıcı adı sorulması (onboarding genişletildi) | ⬜ çalıştır |
 
 `finish_quiz.sql` tekrar çalıştırılabilir (create or replace); `seed_tarih.sql`
-idempotenttir — Tarih içeriği zaten varsa hiçbir şey yazmaz.
+idempotenttir — Tarih içeriği zaten varsa hiçbir şey yazmaz. `username.sql`
+de tekrar çalıştırılabilir (mevcut çakışan kullanıcı adlarını otomatik
+benzersizleştirir, sonra index/trigger/RPC'yi create or replace eder).
+`onboarding.sql` da tekrar çalıştırılabilir (`add column if not exists`).
+`monetization.sql` da tekrar çalıştırılabilir.
+
+**ÖNEMLİ — `monetization.sql` güvenlik için kritik:** bu dosya çalışmadan
+önce herhangi bir authenticated kullanıcı kendi `profiles` satırında
+`is_premium`/`hearts` gibi alanları client'tan doğrudan değiştirebilir
+(RLS yalnız satır sahipliğini kontrol ediyor, kolon bazlı değil). Bu
+dosya bunu GRANT ile kapatıyor — atlamayın.
+`hearts.sql` da tekrar çalıştırılabilir (create or replace).
+
+**ÖNEMLİ — `finish_quiz.sql`'i YENİDEN çalıştırman lazım:** can düşme kuralı
+değişti (premium artık sınırsız can değil, bkz. `hearts.sql` başlığı) —
+mevcut `finish_quiz` fonksiyonunu güncellemek için dosyayı tekrar yapıştırıp
+çalıştır.
 
 **Doğrulama:** SQL Editor'de
 `select count(*) from questions;` → 39 görmelisin (30 tarih + 6 coğrafya + 3 felsefe).

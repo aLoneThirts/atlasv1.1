@@ -107,8 +107,8 @@ export function BossCastle({
 
   return (
     <View style={[styles.wrapper, { left: cx - BOSS_BOX / 2, top: cy - BOSS_BOX / 2 - 30 }]}>
-      <Animated.View style={outerStyle}>
-        <Animated.View style={innerStyle}>
+      <Animated.View style={[styles.glowCenter, outerStyle]}>
+        <Animated.View style={[styles.glowCenter, innerStyle]}>
           <GlowHalo color="#FFD700" size={BOSS_BOX} opacity={glowOpacity} />
           <Image
             source={require('@/assets/images/atlas/castle-tyt.png')}
@@ -137,6 +137,7 @@ export function BossCastle({
 
 const styles = StyleSheet.create({
   wrapper: { position: 'absolute', width: BOSS_BOX, alignItems: 'center' },
+  glowCenter: { alignItems: 'center', justifyContent: 'center' },
   image: { width: BOSS_BOX, height: BOSS_BOX },
   squares: { flexDirection: 'row', gap: 4, marginTop: 4 },
   squareSlot: { alignItems: 'center', justifyContent: 'center' },

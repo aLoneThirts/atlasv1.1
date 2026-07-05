@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -23,14 +23,53 @@ import { supabase } from '@/lib/supabase';
  * Oturum açılınca root layout'taki Stack.Protected otomatik olarak
  * sekmelere geçirir; yönlendirme koduna gerek yok.
  */
+const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
+
+type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
+
 export default function GirisScreen() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const checkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const onUsernameChange = (text: string) => {
+    const clean = text.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    setUsername(clean);
+  };
+
+  useEffect(() => {
+    if (mode !== 'signup') return;
+    if (checkTimer.current) clearTimeout(checkTimer.current);
+    if (!username) {
+      setUsernameStatus('idle');
+      return;
+    }
+    if (!USERNAME_RE.test(username)) {
+      setUsernameStatus('invalid');
+      return;
+    }
+    setUsernameStatus('checking');
+    checkTimer.current = setTimeout(async () => {
+      const { data, error: err } = await supabase.rpc('is_username_available', { check_username: username });
+      if (err) {
+        setUsernameStatus('idle');
+        return;
+      }
+      setUsernameStatus(data ? 'available' : 'taken');
+    }, 450);
+    return () => {
+      if (checkTimer.current) clearTimeout(checkTimer.current);
+    };
+  }, [username, mode]);
 
   const submit = async () => {
     if (busy) return;
@@ -41,13 +80,33 @@ export default function GirisScreen() {
       setError('E-posta ve şifreni gir.');
       return;
     }
+    if (mode === 'signup') {
+      if (!USERNAME_RE.test(username)) {
+        setError('Kullanıcı adı 3-20 karakter olmalı, sadece küçük harf/rakam/alt çizgi içerebilir.');
+        return;
+      }
+      if (usernameStatus === 'taken') {
+        setError('Bu kullanıcı adı alınmış — başka bir tane dene.');
+        return;
+      }
+    }
     setBusy(true);
     try {
       if (mode === 'login') {
         const { error: err } = await supabase.auth.signInWithPassword({ email: mail, password });
         if (err) throw err;
       } else {
-        const { data, error: err } = await supabase.auth.signUp({ email: mail, password });
+        const { data, error: err } = await supabase.auth.signUp({
+          email: mail,
+          password,
+          options: {
+            data: {
+              username,
+              first_name: firstName.trim() || null,
+              last_name: lastName.trim() || null,
+            },
+          },
+        });
         if (err) throw err;
         if (!data.session) {
           setInfo('Hesabın oluştu! 📬 E-postana gelen doğrulama bağlantısına tıkla, sonra giriş yap.');
@@ -91,6 +150,49 @@ export default function GirisScreen() {
             <Text style={styles.sub}>Kaleni kur, konuları fethet.{'\n'}YKS bir sefer — sen komutansın. ⚔️</Text>
 
             <View style={styles.form}>
+              {mode === 'signup' && (
+                <>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Kullanıcı adı"
+                    placeholderTextColor="rgba(255,255,255,0.45)"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    maxLength={20}
+                    value={username}
+                    onChangeText={onUsernameChange}
+                  />
+                  {usernameStatus !== 'idle' && (
+                    <Text
+                      style={[
+                        styles.usernameHint,
+                        usernameStatus === 'available' && styles.usernameHintOk,
+                        (usernameStatus === 'taken' || usernameStatus === 'invalid') && styles.usernameHintBad,
+                      ]}>
+                      {usernameStatus === 'checking' && 'Kontrol ediliyor…'}
+                      {usernameStatus === 'available' && 'Kullanılabilir ✓'}
+                      {usernameStatus === 'taken' && 'Bu kullanıcı adı alınmış'}
+                      {usernameStatus === 'invalid' && 'En az 3 karakter — küçük harf/rakam/alt çizgi'}
+                    </Text>
+                  )}
+                  <View style={styles.nameRow}>
+                    <TextInput
+                      style={[styles.input, styles.nameInput]}
+                      placeholder="Ad"
+                      placeholderTextColor="rgba(255,255,255,0.45)"
+                      value={firstName}
+                      onChangeText={setFirstName}
+                    />
+                    <TextInput
+                      style={[styles.input, styles.nameInput]}
+                      placeholder="Soyad"
+                      placeholderTextColor="rgba(255,255,255,0.45)"
+                      value={lastName}
+                      onChangeText={setLastName}
+                    />
+                  </View>
+                </>
+              )}
               <TextInput
                 style={styles.input}
                 placeholder="E-posta"
@@ -161,6 +263,12 @@ function turkishAuthError(e: unknown): string {
   if (msg.includes('provider is not enabled') || msg.includes('Unsupported provider')) {
     return 'Google ile giriş henüz açılmadı — Supabase Dashboard\'da etkinleştirilmesi gerekiyor.';
   }
+  if (msg.includes('profiles_username_lower_idx') || msg.includes('duplicate key value')) {
+    return 'Bu kullanıcı adı alınmış — başka bir tane dene.';
+  }
+  if (msg.includes('profiles_username_format')) {
+    return 'Kullanıcı adı sadece küçük harf, rakam ve alt çizgi içerebilir (3-20 karakter).';
+  }
   return 'Bir şeyler ters gitti: ' + msg;
 }
 
@@ -185,6 +293,8 @@ const styles = StyleSheet.create({
     marginBottom: 26,
   },
   form: { gap: 12 },
+  nameRow: { flexDirection: 'row', gap: 12 },
+  nameInput: { flex: 1, minWidth: 0 },
   input: {
     backgroundColor: 'rgba(255,255,255,0.10)',
     borderWidth: 1.5,
@@ -201,6 +311,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
+  usernameHint: {
+    marginTop: -6,
+    fontSize: 12,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.6)',
+  },
+  usernameHintOk: { color: AtlasColors.greenLight },
+  usernameHintBad: { color: '#FFB4B4' },
   info: {
     color: AtlasColors.greenLight,
     fontSize: 13,

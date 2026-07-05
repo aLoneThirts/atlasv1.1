@@ -8,6 +8,8 @@ export type ExamTrack = 'tyt' | 'tyt_ayt_ea';
 export type Profile = {
   id: string;
   username: string | null;
+  first_name: string | null;
+  last_name: string | null;
   exam_track: ExamTrack;
   target_university: string | null;
   target_department: string | null;
@@ -19,6 +21,8 @@ export type Profile = {
   daily_xp_goal: number;
   is_premium: boolean;
   expo_push_token: string | null;
+  onboarding_completed: boolean;
+  ads_removed: boolean;
   created_at: string;
 };
 
@@ -125,3 +129,17 @@ export type Flashcard = {
 
 /** mock_exams.nets — ders adı -> net sayısı, örn. {"Türkçe": 32.5, "Tarih": 7} */
 export type MockExamNets = Record<string, number>;
+
+export type ScoreCoefficients = {
+  year: number;
+  score_type: import('@shared/yks-calc').ScoreType;
+  base_score: number;
+  coefficients: Record<string, number>;
+};
+
+export type ExamCalcResult = {
+  hamPuan: number;
+  obp: number;
+  obpKatkisi: number;
+  yerlestirmePuani: number;
+};

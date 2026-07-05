@@ -9,7 +9,9 @@
 -- ------------------------------------------------------------
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  username text,
+  username text,                   -- benzersiz (bkz. aşağıdaki index) — kayıt formunda/onboarding'de seçilir
+  first_name text,
+  last_name text,
   exam_track text not null default 'tyt' check (exam_track in ('tyt','tyt_ayt_ea')),
   target_university text,          -- örn. "Boğaziçi"
   target_department text,          -- örn. "İktisat"
@@ -21,21 +23,138 @@ create table public.profiles (
   daily_xp_goal int not null default 200,
   is_premium boolean not null default false,  -- monetizasyon: sadece Tarih ücretsiz
   expo_push_token text,            -- Pazar bildirimi için
+  onboarding_completed boolean not null default false,  -- hedef okul/bölüm ekranı gösterildi mi
+  ads_removed boolean not null default false,  -- reklamsız satın alma (premium'dan bağımsız)
   created_at timestamptz not null default now()
 );
 
--- Yeni kullanıcı kaydında profil satırı aç
+-- Client'ın doğrudan UPDATE edebileceği kolonları daralt — is_premium/ads_removed/
+-- hearts/streak_*/exam_track gibi hassas alanlar yalnız SECURITY DEFINER RPC'lerle
+-- (finish_quiz, refill_hearts, dev_set_premium, dev_set_ads_removed) değişir.
+-- Aksi halde RLS yalnız satır sahipliğini kontrol ettiğinden herkes kendine
+-- client'tan direkt premium/can verebilirdi.
+revoke update on public.profiles from authenticated;
+grant update (
+  username,
+  first_name,
+  last_name,
+  target_university,
+  target_department,
+  exam_date,
+  daily_xp_goal,
+  expo_push_token,
+  onboarding_completed
+) on public.profiles to authenticated;
+
+-- v1 PLACEHOLDER — gerçek RevenueCat webhook'u kurulunca bunların yerini bir
+-- Edge Function (service_role ile) alacak; client bu RPC'leri hiç çağırmayacak.
+-- Şimdilik atlas-mobile/src/lib/purchases.ts "test modu" uyarısıyla çağırıyor
+-- (gerçek ödeme doğrulaması YOK).
+create or replace function public.dev_set_premium(active boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update profiles set is_premium = active where id = auth.uid();
+end $$;
+
+grant execute on function public.dev_set_premium(boolean) to authenticated;
+
+create or replace function public.dev_set_ads_removed(active boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update profiles set ads_removed = active where id = auth.uid();
+end $$;
+
+grant execute on function public.dev_set_ads_removed(boolean) to authenticated;
+
+-- username: küçük harf/rakam/alt çizgi, 3-20 karakter, case-insensitive benzersiz.
+-- NOT VALID: yalnız bundan sonraki insert/update'lere uygulanır (eski/serbest
+-- formatlı satırları geriye dönük doğrulamaz — bkz. supabase/username.sql).
+alter table public.profiles
+  add constraint profiles_username_format
+  check (username is null or username ~ '^[a-z0-9_]{3,20}$') not valid;
+
+create unique index profiles_username_lower_idx on public.profiles (lower(username)) where username is not null;
+
+-- Yeni kullanıcı kaydında profil satırı aç. username: kayıt formunda seçilen
+-- ad (auth.signUp options.data.username) varsa o, yoksa e-posta önekinden
+-- türetilir; format dışı karakterler temizlenir. Ad zaten alınmışsa (örn.
+-- Google girişinde e-posta önekinden türetilirken çakışma) id'den türeyen bir
+-- son ek eklenir — kayıt akışı ASLA bu yüzden kesilmez.
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  v_raw        text;
+  v_username   text;
+  v_full_name  text;
+  v_first_name text;
+  v_last_name  text;
 begin
-  insert into public.profiles (id, username)
-  values (new.id, split_part(coalesce(new.email,''), '@', 1));
+  v_raw := lower(coalesce(new.raw_user_meta_data->>'username', split_part(coalesce(new.email, ''), '@', 1)));
+  v_username := regexp_replace(v_raw, '[^a-z0-9_]', '', 'g');
+  if v_username is null or length(v_username) < 3 then
+    v_username := 'atlas' || substr(replace(new.id::text, '-', ''), 1, 6);
+  end if;
+  v_username := substr(v_username, 1, 20);
+
+  -- first_name/last_name: önce bizim gönderdiğimiz metadata (email kayıt formu),
+  -- yoksa Google'ın kendi gönderdiği given_name/family_name veya full_name/name
+  -- (boşluktan bölünerek) — Google ile girenler onboarding'de adını yeniden
+  -- yazmak zorunda kalmasın.
+  v_full_name := coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name');
+  v_first_name := coalesce(
+    new.raw_user_meta_data->>'first_name',
+    new.raw_user_meta_data->>'given_name',
+    nullif(split_part(v_full_name, ' ', 1), '')
+  );
+  v_last_name := coalesce(
+    new.raw_user_meta_data->>'last_name',
+    new.raw_user_meta_data->>'family_name',
+    nullif(regexp_replace(v_full_name, '^\S+\s*', ''), '')
+  );
+
+  begin
+    insert into public.profiles (id, username, first_name, last_name)
+    values (new.id, v_username, v_first_name, v_last_name);
+  exception when unique_violation then
+    insert into public.profiles (id, username, first_name, last_name)
+    values (
+      new.id,
+      substr(v_username, 1, 13) || '_' || substr(replace(new.id::text, '-', ''), 1, 6),
+      v_first_name,
+      v_last_name
+    );
+  end;
   return new;
 end $$;
 
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- Kayıt ekranının canlı kullanılabilirlik kontrolü için — profiles RLS
+-- "sadece sahibi" olduğundan client başka satırları SELECT edemiyor; bu RPC
+-- yalnız var/yok bilgisini (boolean) döndürür, başka veri sızdırmaz.
+create or replace function public.is_username_available(check_username text)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select not exists (
+    select 1 from public.profiles where lower(username) = lower(trim(check_username))
+  );
+$$;
+
+grant execute on function public.is_username_available(text) to anon, authenticated;
 
 -- ------------------------------------------------------------
 -- İÇERİK — ders (kale) > bölüm > konu > soru / bilgi kartı

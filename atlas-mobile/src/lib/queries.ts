@@ -7,6 +7,7 @@ import { supabase } from './supabase';
 import type {
   CoachMessage,
   ContinueTarget,
+  ExamCalcResult,
   FinishQuizResult,
   Flashcard,
   MistakeItem,
@@ -15,6 +16,7 @@ import type {
   Question,
   QuizAnswer,
   QuizMode,
+  ScoreCoefficients,
   Subject,
   SubjectSummary,
   TopicNode,
@@ -22,6 +24,8 @@ import type {
   UnitNode,
   WeeklyExam,
 } from './types';
+import type { NetMap, ScoreType } from '@shared/yks-calc';
+import type { RankPoint } from '@shared/rank-estimator';
 
 /* ------------------------------------------------------------
    Zaman yardımcıları — iş kuralları Europe/Istanbul (UTC+3 sabit)
@@ -60,6 +64,71 @@ export async function fetchProfile(): Promise<Profile> {
   const { data, error } = await supabase.from('profiles').select('*').single();
   if (error) throw error;
   return data as Profile;
+}
+
+/**
+ * RLS "own profile" zaten çağıranın satırıyla sınırlar, ama supabase-js
+ * filtresiz update/delete'i KENDİSİ reddediyor ("UPDATE requires a WHERE
+ * clause") — bu yüzden id filtresi RLS için değil, client kütüphanesinin
+ * kendi güvenlik kontrolünü geçmek için gerekli.
+ */
+export async function updateProfile(patch: Partial<Profile>): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Oturum yok.');
+  const { error } = await supabase.from('profiles').update(patch).eq('id', user.id);
+  if (error) throw error;
+}
+
+/* ------------------------------------------------------------
+   ÖSYM puan hesaplama (görev listesi madde 10/11)
+------------------------------------------------------------ */
+
+export async function fetchScoreCoefficients(year: number, scoreType: ScoreType): Promise<ScoreCoefficients> {
+  const { data, error } = await supabase
+    .from('score_coefficients')
+    .select('year, score_type, base_score, coefficients')
+    .eq('year', year)
+    .eq('score_type', scoreType)
+    .single();
+  if (error) throw error;
+  return data as ScoreCoefficients;
+}
+
+/** calculate-yks-score Edge Function'ı çağırır — hesaplama + kayıt tek adımda (bkz. shared/yks-calc.ts). */
+export async function calculateAndSaveExamScore(params: {
+  year: number;
+  scoreType: ScoreType;
+  netler: NetMap;
+  diplomaNotu?: number;
+  oncekiYilYerlesti?: boolean;
+}): Promise<ExamCalcResult> {
+  const { data, error } = await supabase.functions.invoke('calculate-yks-score', { body: params });
+  if (error) throw error;
+  return data as ExamCalcResult;
+}
+
+/** score_rank_distribution'da bu puan türü için verisi olan yıllar (yeniden→eskiye). */
+export async function fetchAvailableRankYears(scoreType: ScoreType): Promise<number[]> {
+  const { data, error } = await supabase
+    .from('score_rank_distribution')
+    .select('year')
+    .eq('score_type', scoreType);
+  if (error) throw error;
+  const years = [...new Set((data ?? []).map((r) => r.year as number))];
+  return years.sort((a, b) => b - a);
+}
+
+/** Bir yılın (score,rank) nokta bulutu — rank-estimator.ts'in tahminSira'sına verilir. */
+export async function fetchScoreRankDistribution(year: number, scoreType: ScoreType): Promise<RankPoint[]> {
+  const { data, error } = await supabase
+    .from('score_rank_distribution')
+    .select('score, rank')
+    .eq('year', year)
+    .eq('score_type', scoreType);
+  if (error) throw error;
+  return (data ?? []) as RankPoint[];
 }
 
 export async function fetchXpToday(): Promise<number> {

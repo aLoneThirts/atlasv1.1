@@ -82,9 +82,15 @@ Backend'in doğru uygulaması gereken kurallar. "KESİN" = prototipte/briefte
 sabitlenmiş; "ÖNERİ" = henüz kararlaştırılmadı, Göktuğ'la netleştirin.
 
 ### 4.1 Can (Hearts) — KESİN + ÖNERİ
-- Maksimum 5 can (`profiles.hearts`).
+- Maksimum 5 can (`profiles.hearts`), **herkes için** (premium dahil — eski
+  "premium'da sınırsız can" kuralı kaldırıldı, karar değişti).
 - Quiz'de her yanlış cevap **−1 can**. 0 canda quiz'e devam edilemez ("Canın Bitti" ekranı).
-- Premium kullanıcıda can **sınırsız** (düşme uygulanmaz).
+- Ekstra can gerçek parayla satın alınır: **anlık tam doldurma** (5/5),
+  tüketilebilir (consumable) IAP ürünü — RevenueCat üzerinden (bkz. §7 ve
+  `supabase/hearts.sql` — `refill_hearts()` RPC). v1'de mağaza hesapları
+  (Apple Developer / Google Play Console) henüz kurulmadığından
+  `atlas-mobile/src/lib/purchases.ts` şimdilik placeholder — gerçek satın
+  alma yerine doğrudan RPC'yi çağırıyor, ekranda "test modu" uyarısı var.
 - ÖNERİ: Zamanla yenilenme — 30 dk'da 1 can. Sunucu saatiyle hesap:
   `hearts_updated_at` + geçen süre → istemci anlık değeri türetir, quiz
   başında/sonunda DB'ye yazılır. Ayrı cron gerekmez.
@@ -131,9 +137,12 @@ Konular ders içinde **lineer** açılır: bir konu `done` olunca sıradaki `loc
 ### 4.9 Premium erişim — KESİN
 - `subjects.is_free = true` olan tek ders Tarih.
 - Ücretsiz kullanıcı: Tarih içeriği + temel özellikler. Koç, haftalık sınav,
-  diğer dersler, sınırsız can → premium.
-- ÖNERİ: Abonelik doğrulaması için RevenueCat (iOS+Android tek SDK) — `profiles.is_premium`
-  webhook'la güncellenir. Karar bekliyor.
+  diğer dersler → premium. (Can artık premium'un bir parçası DEĞİL — §4.1'e bak,
+  herkes aynı 5 can tavanına tabi, ekstra can ayrı parayla satın alınıyor.)
+- KARAR VERİLDİ: Abonelik doğrulaması RevenueCat (iOS+Android tek SDK) —
+  `profiles.is_premium` webhook'la güncellenecek. v1'de Apple Developer /
+  Google Play Console hesapları henüz kurulmadığı için gerçek IAP entegrasyonu
+  bekliyor (bkz. §4.1 not).
 
 ---
 
@@ -262,7 +271,7 @@ ekibi/editör işi.
 ## 9. Açık Kararlar (Göktuğ'la netleştirilecek)
 
 1. Can yenileme süresi (öneri: 1 can / 30 dk) ve "reklam izle can kazan" olacak mı?
-2. Abonelik altyapısı: RevenueCat mi, StoreKit2/Play Billing doğrudan mı?
+2. ~~Abonelik altyapısı: RevenueCat mi, StoreKit2/Play Billing doğrudan mı?~~ → **RevenueCat'e karar verildi.**
 3. Streak dondurma (Duolingo "streak freeze") olacak mı?
 4. AYT içeriğinin v1'e girip girmeyeceği (şu an sadece harita toggle'ı var).
 5. Koç günlük proaktif bildirimleri (Flash Lite) v1'de mi v2'de mi?

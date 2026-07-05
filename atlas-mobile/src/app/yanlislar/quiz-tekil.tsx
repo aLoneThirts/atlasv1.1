@@ -28,7 +28,6 @@ export default function SingleQuizScreen() {
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [question, setQuestion] = useState<Question | null>(null);
-  const [isPremium, setIsPremium] = useState(false);
   const [startHearts, setStartHearts] = useState(5);
 
   const [selected, setSelected] = useState<number | null>(null);
@@ -46,7 +45,6 @@ export default function SingleQuizScreen() {
           return;
         }
         setQuestion(q);
-        setIsPremium(profile.is_premium);
         setStartHearts(profile.hearts);
         setPhase('quiz');
       } catch {
@@ -100,7 +98,7 @@ export default function SingleQuizScreen() {
 
   if (phase === 'result' && result && question) {
     const correct = selected === question.correct_index;
-    const heartsLeft = isPremium ? startHearts : result.hearts_left;
+    const heartsLeft = result.hearts_left;
     return (
       <View style={styles.resultBg}>
         <Confetti fire={correct} />
@@ -118,7 +116,7 @@ export default function SingleQuizScreen() {
           <View style={styles.statGrid}>
             <StatBox emoji="🎯" value={correct ? '1/1' : '0/1'} label="DOĞRU" color={AtlasColors.greenDark} />
             <StatBox emoji="❌" value={correct ? '0' : '1'} label="YANLIŞ" color={AtlasColors.red} />
-            <StatBox emoji="❤️" value={isPremium ? '∞' : `${heartsLeft}/5`} label="CAN" color={AtlasColors.red} />
+            <StatBox emoji="❤️" value={`${heartsLeft}/5`} label="CAN" color={AtlasColors.red} />
             <StatBox emoji="💫" value={`+${result.xp_earned} XP`} label="KAZANILAN" color={AtlasColors.blue} />
           </View>
 
@@ -145,7 +143,7 @@ export default function SingleQuizScreen() {
             <Text style={styles.closeX}>✕</Text>
           </Pressable>
           <Text style={styles.headLabel}>Yanlışını Düzelt</Text>
-          <HeartsRow hearts={isPremium ? 5 : startHearts} size={16} />
+          <HeartsRow hearts={startHearts} size={16} />
         </View>
 
         <ScrollView contentContainerStyle={styles.quizScroll}>

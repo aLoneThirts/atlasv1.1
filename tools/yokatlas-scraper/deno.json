@@ -1,0 +1,12 @@
+{
+  "tasks": {
+    "discover": "deno run --allow-net --allow-read --allow-write discover.ts",
+    "collect-ids": "deno run --allow-net --allow-read --allow-write collect-ids.ts",
+    "scrape-details": "deno run --allow-net --allow-read --allow-write scrape-details.ts",
+    "upload": "deno run --allow-net --allow-read --allow-env --env-file=.env upload.ts",
+    "run-all": "deno run --allow-net --allow-read --allow-write --allow-env --allow-run main.ts"
+  },
+  "compilerOptions": {
+    "strict": true
+  }
+}

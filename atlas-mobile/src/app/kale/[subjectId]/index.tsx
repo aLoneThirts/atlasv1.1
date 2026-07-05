@@ -87,7 +87,7 @@ export default function CastleScreen() {
                 {subject?.emoji} {subject?.name ?? ''}
               </Text>
             </View>
-            <HeartsRow hearts={profile?.is_premium ? 5 : (profile?.hearts ?? 5)} size={14} />
+            <HeartsRow hearts={profile?.hearts ?? 5} size={14} />
           </View>
           <View style={styles.progRow}>
             <ProgressBar progress={frac} height={8} trackColor="rgba(0,0,0,0.25)" color={AtlasColors.yellow} />

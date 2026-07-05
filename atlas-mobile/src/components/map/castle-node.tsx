@@ -38,7 +38,10 @@ export function CastleNode({
   const done = state === 'done';
 
   const onPress = () => {
-    if (locked) return;
+    if (locked) {
+      router.push('/premium');
+      return;
+    }
     router.push({ pathname: '/kale/[subjectId]', params: { subjectId: subject.id } } as never);
   };
 
