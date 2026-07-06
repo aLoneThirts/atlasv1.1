@@ -2,7 +2,7 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { AtlasColors } from '@/constants/atlas-theme';
 
-/** Atlas alt sekme çubuğu — brief §6: Ev, Harita, Koç, Yanlışlar */
+/** Atlas alt sekme çubuğu — Ev, Harita, Koç, Yanlışlar, Puan */
 export default function AppTabs() {
   return (
     <NativeTabs
@@ -23,6 +23,10 @@ export default function AppTabs() {
 
       <NativeTabs.Trigger name="yanlislar">
         <NativeTabs.Trigger.Label>Yanlışlar</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="puan">
+        <NativeTabs.Trigger.Label>Puan</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );

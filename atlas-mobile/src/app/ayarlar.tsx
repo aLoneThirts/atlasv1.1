@@ -6,10 +6,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
 import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
-import { fetchProfile, updateProfile } from '@/lib/queries';
+import { fetchProfile, setExamTrack, updateProfile } from '@/lib/queries';
 import { useThemeMode } from '@/lib/theme-context';
+import type { ExamTrack } from '@/lib/types';
 
-/** EKRAN — Ayarlar. Şimdilik yalnız hedef okul/bölüm (onboarding'de girilenin değiştirilebildiği yer). */
+const EXAM_TRACK_OPTIONS: { value: ExamTrack; label: string }[] = [
+  { value: 'tyt', label: 'Sadece TYT' },
+  { value: 'tyt_ayt_ea', label: 'TYT + AYT (EA)' },
+];
+
+/** EKRAN — Ayarlar. Sınav kapsamı + hedef okul/bölüm (onboarding'de girilenlerin değiştirilebildiği yer). */
 export default function AyarlarScreen() {
   const router = useRouter();
   const { mode } = useThemeMode();
@@ -17,6 +23,8 @@ export default function AyarlarScreen() {
 
   const [university, setUniversity] = useState('');
   const [department, setDepartment] = useState('');
+  const [examTrack, setExamTrackState] = useState<ExamTrack>('tyt');
+  const [examTrackBusy, setExamTrackBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,12 +37,28 @@ export default function AyarlarScreen() {
       .then((p) => {
         setUniversity(p.target_university ?? '');
         setDepartment(p.target_department ?? '');
+        setExamTrackState(p.exam_track);
         setIsPremium(p.is_premium);
         setAdsRemoved(p.ads_removed);
       })
       .catch(() => setError('Profil yüklenemedi.'))
       .finally(() => setLoading(false));
   }, []);
+
+  const onPickExamTrack = async (track: ExamTrack) => {
+    if (examTrackBusy || track === examTrack) return;
+    const previous = examTrack;
+    setExamTrackState(track);
+    setExamTrackBusy(true);
+    try {
+      await setExamTrack(track);
+    } catch {
+      setExamTrackState(previous);
+      setError('Sınav kapsamı kaydedilemedi — internetini kontrol edip tekrar dene.');
+    } finally {
+      setExamTrackBusy(false);
+    }
+  };
 
   const save = async () => {
     if (busy) return;
@@ -89,13 +113,28 @@ export default function AyarlarScreen() {
           </Card>
 
           <Card style={styles.card}>
-            <Text style={[styles.sectionTitle, { color: surface.text }]}>Puan Hesaplama</Text>
+            <Text style={[styles.sectionTitle, { color: surface.text }]}>Sınav Kapsamı</Text>
             <Text style={[styles.sectionSub, { color: surface.textSecondary }]}>
-              Netlerini gir, ham puanını ve yerleştirme puanını hesapla (TYT/SAY/EA/SÖZ/DİL).
+              Fetih haritan buna göre şekillenir — istediğin zaman değiştirebilirsin.
             </Text>
-            <Btn3D variant="blue" onPress={() => router.push('/puan-hesapla')}>
-              🧮 Puanımı Hesapla
-            </Btn3D>
+            {!loading && (
+              <View style={styles.trackRow}>
+                {EXAM_TRACK_OPTIONS.map((opt) => (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => onPickExamTrack(opt.value)}
+                    style={[
+                      styles.trackPill,
+                      { borderColor: surface.cardBorder },
+                      examTrack === opt.value && styles.trackPillActive,
+                    ]}>
+                    <Text style={[styles.trackPillText, examTrack === opt.value && styles.trackPillTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
           </Card>
 
           <Card style={styles.card}>
@@ -180,4 +219,9 @@ const styles = StyleSheet.create({
     fontFamily: AtlasFonts.heading,
     textAlign: 'center',
   },
+  trackRow: { flexDirection: 'row', gap: 8 },
+  trackPill: { flex: 1, borderWidth: 1.5, borderRadius: AtlasRadius.pill, paddingVertical: 10, alignItems: 'center' },
+  trackPillActive: { backgroundColor: AtlasColors.blue, borderColor: AtlasColors.blue },
+  trackPillText: { fontSize: 13, fontFamily: AtlasFonts.bodyBold, color: AtlasColors.gray },
+  trackPillTextActive: { color: AtlasColors.white },
 });

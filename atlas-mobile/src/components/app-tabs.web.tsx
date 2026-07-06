@@ -15,7 +15,7 @@ import { AtlasColors, AtlasFonts, AtlasLayout, AtlasSpacing, ledgeShadowWeb } fr
 /** Sabit alt çubuğun yaklaşık yüksekliği — TabSlot'a paddingBottom olarak eklenir */
 const TAB_BAR_HEIGHT = 84;
 
-/** Atlas alt sekmeleri (web) — Ev, Harita, Koç, Yanlışlar */
+/** Atlas alt sekmeleri (web) — Ev, Harita, Koç, Yanlışlar, Puan */
 export default function AppTabs() {
   return (
     <Tabs>
@@ -34,6 +34,9 @@ export default function AppTabs() {
           </TabTrigger>
           <TabTrigger name="yanlislar" href="/yanlislar" asChild>
             <TabButton>⚠️ Yanlışlar</TabButton>
+          </TabTrigger>
+          <TabTrigger name="puan" href="/puan" asChild>
+            <TabButton>🧮 Puan</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>

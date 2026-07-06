@@ -1,4 +1,3 @@
-import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -6,8 +5,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
 import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
-import { calculateAndSaveExamScore, fetchAvailableRankYears, fetchScoreRankDistribution } from '@/lib/queries';
+import {
+  calculateAndSaveExamScore,
+  fetchAvailableRankYears,
+  fetchProgramStats,
+  fetchScoreRankDistribution,
+  searchYksPrograms,
+} from '@/lib/queries';
 import { useThemeMode } from '@/lib/theme-context';
+import type { YksProgramStat, YksProgramSummary } from '@/lib/types';
 import { hesaplaNet, yuvarla, type NetMap } from '@shared/yks-calc';
 import { sonYillarSira, type RankPoint, type YearlyRankEstimate } from '@shared/rank-estimator';
 
@@ -76,8 +82,7 @@ function emptyAnswers(scoreType: ScoreTypeUi): Answers {
   return Object.fromEntries(SUBJECTS_BY_SCORE_TYPE[scoreType].map((s) => [s.key, { dogru: '', yanlis: '' }]));
 }
 
-export default function PuanHesaplaScreen() {
-  const router = useRouter();
+export default function PuanScreen() {
   const { mode } = useThemeMode();
   const surface = AtlasSurface[mode];
 
@@ -128,7 +133,7 @@ export default function PuanHesaplaScreen() {
       const diploma = diplomaNotu === '' ? undefined : Number(diplomaNotu);
       const r = await calculateAndSaveExamScore({ year, scoreType, netler, diplomaNotu: diploma, oncekiYilYerlesti });
       setResult(r);
-      await yukleSiralamaTahmini(r.yerlestirmePuani);
+      if (scoreType !== 'TYT') await yukleSiralamaTahmini(r.yerlestirmePuani);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Hesaplanamadı — internetini kontrol edip tekrar dene.');
     } finally {
@@ -137,7 +142,6 @@ export default function PuanHesaplaScreen() {
   };
 
   const yukleSiralamaTahmini = async (puan: number) => {
-    if (scoreType === 'TYT') return; // TYT için program bazlı sıralama verisi yok (bkz. yks_programs)
     setSiralarYukleniyor(true);
     try {
       const years = await fetchAvailableRankYears(scoreType);
@@ -157,11 +161,7 @@ export default function PuanHesaplaScreen() {
     <View style={[styles.container, { backgroundColor: surface.bg }]}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
-            <Text style={[styles.back, { color: surface.text }]}>‹ Geri</Text>
-          </Pressable>
-          <Text style={[styles.title, { color: surface.text }]}>Puanımı Hesapla</Text>
-          <View style={styles.backSpacer} />
+          <Text style={[styles.title, { color: surface.text }]}>🧮 Puanımı Hesapla</Text>
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll}>
@@ -268,14 +268,23 @@ export default function PuanHesaplaScreen() {
             </Card>
           )}
 
-          {result && scoreType !== 'TYT' && (
+          {result && (
             <Card style={styles.card}>
               <Text style={[styles.sectionTitle, { color: surface.text }]}>Son Yıllar Sıralama (~yaklaşık)</Text>
-              {siralarYukleniyor && <Text style={{ color: surface.textSecondary }}>Hesaplanıyor…</Text>}
-              {!siralarYukleniyor && siralar && siralar.length === 0 && (
+              {scoreType === 'TYT' && (
+                <Text style={{ color: surface.textSecondary }}>
+                  TYT tek başına bir programa yerleştirmediği için TYT puan türünde sıralama verisi yok — bir
+                  puan türü (SAY/EA/SÖZ/DİL) hesapla, sıralamanı orada gör.
+                </Text>
+              )}
+              {scoreType !== 'TYT' && siralarYukleniyor && (
+                <Text style={{ color: surface.textSecondary }}>Hesaplanıyor…</Text>
+              )}
+              {scoreType !== 'TYT' && !siralarYukleniyor && siralar && siralar.length === 0 && (
                 <Text style={{ color: surface.textSecondary }}>Bu puan türü için henüz sıralama verisi yok.</Text>
               )}
-              {!siralarYukleniyor &&
+              {scoreType !== 'TYT' &&
+                !siralarYukleniyor &&
                 siralar?.map((s) => (
                   <View key={s.yil} style={styles.rankRow}>
                     <Text style={[styles.rankYear, { color: surface.text }]}>{s.yil}</Text>
@@ -285,13 +294,17 @@ export default function PuanHesaplaScreen() {
                     </Text>
                   </View>
                 ))}
-              <Text style={[styles.rankWarning, { color: surface.textSecondary }]}>
-                ⚠️ Yıllar arası puan enflasyonu nedeniyle aynı puan farklı yıllarda farklı sıraya denk
-                gelebilir — bunlar kendi topladığımız program taban puanlarından türetilen YAKLAŞIK
-                tahminlerdir, kesin sıra DEĞİLDİR. Kesin sıran için ÖSYM sonuç belgeni kontrol et.
-              </Text>
+              {scoreType !== 'TYT' && (
+                <Text style={[styles.rankWarning, { color: surface.textSecondary }]}>
+                  ⚠️ Yıllar arası puan enflasyonu nedeniyle aynı puan farklı yıllarda farklı sıraya denk
+                  gelebilir — bunlar kendi topladığımız program taban puanlarından türetilen YAKLAŞIK
+                  tahminlerdir, kesin sıra DEĞİLDİR. Kesin sıran için ÖSYM sonuç belgeni kontrol et.
+                </Text>
+              )}
             </Card>
           )}
+
+          <OkulBolumSorgula surface={surface} />
         </ScrollView>
       </SafeAreaView>
     </View>
@@ -307,13 +320,150 @@ function ResultRow({ label, value, emphasis }: { label: string; value: number; e
   );
 }
 
+/**
+ * Okul/bölüm arayıp o programın geçmiş yıllardaki taban puan/sıralama/net
+ * ortalamasını gösteren bölüm — yks_programs/yks_program_stats'tan
+ * (tools/yokatlas-scraper ile toplandı), kullanıcının kendi netinden bağımsız.
+ */
+function OkulBolumSorgula({ surface }: { surface: (typeof AtlasSurface)[keyof typeof AtlasSurface] }) {
+  const [university, setUniversity] = useState('');
+  const [department, setDepartment] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [results, setResults] = useState<YksProgramSummary[]>([]);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [statsByProgram, setStatsByProgram] = useState<Record<string, YksProgramStat[]>>({});
+  const [statsLoadingId, setStatsLoadingId] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  const ara = async () => {
+    if (searching) return;
+    if (!university.trim() && !department.trim()) return;
+    setSearching(true);
+    setSearched(true);
+    setSearchError(null);
+    setOpenId(null);
+    try {
+      const r = await searchYksPrograms(university, department);
+      setResults(r);
+    } catch (e) {
+      setResults([]);
+      setSearchError(e instanceof Error ? e.message : 'Arama yapılamadı — internetini kontrol edip tekrar dene.');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const toggleProgram = async (program: YksProgramSummary) => {
+    if (openId === program.id) {
+      setOpenId(null);
+      return;
+    }
+    setOpenId(program.id);
+    if (statsByProgram[program.id]) return;
+    setStatsLoadingId(program.id);
+    try {
+      const stats = await fetchProgramStats(program.id);
+      setStatsByProgram((prev) => ({ ...prev, [program.id]: stats }));
+    } catch {
+      setStatsByProgram((prev) => ({ ...prev, [program.id]: [] }));
+    } finally {
+      setStatsLoadingId(null);
+    }
+  };
+
+  return (
+    <Card style={styles.card}>
+      <Text style={[styles.sectionTitle, { color: surface.text }]}>Okul/Bölüm Sırala</Text>
+      <Text style={[styles.sectionSub, { color: surface.textSecondary }]}>
+        Bir üniversite ve/veya bölüm gir, geçmiş yılların taban puan/sıralama/net ortalamasını gör.
+      </Text>
+      <View style={styles.inputRow}>
+        <TextInput
+          style={[styles.input, { flex: 1, color: surface.text, borderColor: surface.cardBorder }]}
+          placeholder="Üniversite (ör. Boğaziçi)"
+          placeholderTextColor={surface.textSecondary}
+          value={university}
+          onChangeText={setUniversity}
+          onSubmitEditing={ara}
+        />
+        <TextInput
+          style={[styles.input, { flex: 1, color: surface.text, borderColor: surface.cardBorder }]}
+          placeholder="Bölüm (ör. İktisat)"
+          placeholderTextColor={surface.textSecondary}
+          value={department}
+          onChangeText={setDepartment}
+          onSubmitEditing={ara}
+        />
+      </View>
+      <Btn3D variant="blue" size="small" onPress={ara} disabled={searching}>
+        {searching ? '...' : 'Ara'}
+      </Btn3D>
+
+      {searchError && <Text style={styles.error}>{searchError}</Text>}
+
+      {searched && !searching && !searchError && results.length === 0 && (
+        <Text style={{ color: surface.textSecondary }}>Eşleşen program bulunamadı.</Text>
+      )}
+
+      {results.map((p) => (
+        <View key={p.id} style={[styles.programItem, { borderColor: surface.cardBorder }]}>
+          <Pressable onPress={() => toggleProgram(p)} style={styles.programHead}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.programUni, { color: surface.text }]}>{p.university}</Text>
+              <Text style={[styles.programDept, { color: surface.textSecondary }]}>
+                {p.department} • {p.scoreType}
+                {p.city ? ` • ${p.city}` : ''}
+              </Text>
+            </View>
+            <Text style={{ color: surface.textSecondary }}>{openId === p.id ? '▲' : '▼'}</Text>
+          </Pressable>
+
+          {openId === p.id && (
+            <View style={styles.programBody}>
+              {statsLoadingId === p.id && <Text style={{ color: surface.textSecondary }}>Yükleniyor…</Text>}
+              {statsLoadingId !== p.id && (statsByProgram[p.id]?.length ?? 0) === 0 && (
+                <Text style={{ color: surface.textSecondary }}>Bu program için veri yok.</Text>
+              )}
+              {statsLoadingId !== p.id &&
+                statsByProgram[p.id]?.map((s) => (
+                  <View key={s.year} style={styles.statRow}>
+                    <Text style={[styles.statYear, { color: surface.text }]}>{s.year}</Text>
+                    <View style={styles.statCol}>
+                      <Text style={styles.statLabel}>Taban Puan</Text>
+                      <Text style={[styles.statValue, { color: surface.text }]}>
+                        {s.minScore != null ? yuvarla(s.minScore) : '—'}
+                      </Text>
+                    </View>
+                    <View style={styles.statCol}>
+                      <Text style={styles.statLabel}>Sıralama</Text>
+                      <Text style={[styles.statValue, { color: surface.text }]}>
+                        {s.minRank != null ? `~${s.minRank.toLocaleString('tr')}` : '—'}
+                      </Text>
+                    </View>
+                    <View style={styles.statCol}>
+                      <Text style={styles.statLabel}>Net Ort.</Text>
+                      <Text style={[styles.statValue, { color: surface.text }]}>
+                        {s.avgTytNet != null || s.avgAytNet != null
+                          ? `${s.avgTytNet != null ? yuvarla(s.avgTytNet) : '—'} / ${s.avgAytNet != null ? yuvarla(s.avgAytNet) : '—'}`
+                          : '—'}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+            </View>
+          )}
+        </View>
+      ))}
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safe: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 12 },
-  back: { fontSize: 15, fontFamily: AtlasFonts.bodyBold },
-  backSpacer: { width: 40 },
-  title: { fontSize: 16, fontFamily: AtlasFonts.heading },
+  header: { paddingHorizontal: 18, paddingVertical: 12 },
+  title: { fontSize: 18, fontFamily: AtlasFonts.heading },
   scroll: { paddingHorizontal: 18, paddingBottom: 40, gap: 14 },
   tabRow: { flexDirection: 'row', gap: 6 },
   tab: { flex: 1, borderWidth: 1.5, borderRadius: AtlasRadius.pill, paddingVertical: 8, alignItems: 'center' },
@@ -333,6 +483,7 @@ const styles = StyleSheet.create({
   inputRow: { flexDirection: 'row', gap: 10 },
   input: { flex: 1, minWidth: 0, borderWidth: 1.5, borderRadius: AtlasRadius.button, paddingHorizontal: 14, paddingVertical: 10, fontSize: 14 },
   sectionTitle: { fontSize: 14, fontFamily: AtlasFonts.heading },
+  sectionSub: { fontSize: 12, fontFamily: AtlasFonts.bodySemi, marginTop: -6 },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
   checkbox: {
     width: 22,
@@ -363,4 +514,14 @@ const styles = StyleSheet.create({
   rankYear: { fontSize: 13, fontFamily: AtlasFonts.bodyBold },
   rankValue: { fontSize: 13, fontFamily: AtlasFonts.heading, color: AtlasColors.blueDark },
   rankWarning: { fontSize: 11, fontFamily: AtlasFonts.bodySemi, lineHeight: 16, marginTop: 6 },
+  programItem: { borderTopWidth: 1.5, paddingTop: 10, marginTop: 2 },
+  programHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  programUni: { fontSize: 13.5, fontFamily: AtlasFonts.bodyBold },
+  programDept: { fontSize: 12, fontFamily: AtlasFonts.bodySemi, marginTop: 2 },
+  programBody: { marginTop: 10, gap: 8 },
+  statRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  statYear: { fontSize: 12.5, fontFamily: AtlasFonts.bodyBold, width: 40 },
+  statCol: { flex: 1, alignItems: 'center' },
+  statLabel: { fontSize: 9.5, fontFamily: AtlasFonts.bodyBold, color: AtlasColors.gray },
+  statValue: { fontSize: 12.5, fontFamily: AtlasFonts.heading, marginTop: 2 },
 });

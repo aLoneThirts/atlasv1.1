@@ -6,12 +6,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { AtlasColors, AtlasGradients, AtlasRadius } from '@/constants/atlas-theme';
 import { useAuth } from '@/lib/auth-context';
-import { fetchProfile, updateProfile } from '@/lib/queries';
+import { fetchProfile, setExamTrack, updateProfile } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
+import type { ExamTrack } from '@/lib/types';
 
 const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
+
+const EXAM_TRACK_OPTIONS: { value: ExamTrack; emoji: string; title: string; subtitle: string }[] = [
+  { value: 'tyt', emoji: '🏰', title: 'Sadece TYT', subtitle: 'Türkçe, Tarih, Coğrafya, Felsefe, Fizik, Kimya, Biyoloji' },
+  { value: 'tyt_ayt_ea', emoji: '⚔️', title: 'TYT + AYT (EA)', subtitle: 'Yukarıdakilere ek: Edebiyat, Tarih, Coğrafya, Felsefe (AYT)' },
+];
 
 /**
  * EKRAN — İlk giriş onboarding'i.
@@ -36,6 +42,7 @@ export default function OnboardingScreen() {
   const [lastName, setLastName] = useState('');
   const [university, setUniversity] = useState('');
   const [department, setDepartment] = useState('');
+  const [examTrack, setExamTrackLocal] = useState<ExamTrack>('tyt');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const checkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -49,6 +56,7 @@ export default function OnboardingScreen() {
         setLastName(p.last_name ?? '');
         setUniversity(p.target_university ?? '');
         setDepartment(p.target_department ?? '');
+        setExamTrackLocal(p.exam_track);
       })
       .finally(() => setLoaded(true));
   }, []);
@@ -101,6 +109,7 @@ export default function OnboardingScreen() {
     setBusy(true);
     setError(null);
     try {
+      await setExamTrack(examTrack);
       await updateProfile({
         username,
         first_name: firstName.trim() || null,
@@ -174,6 +183,20 @@ export default function OnboardingScreen() {
                   value={lastName}
                   onChangeText={setLastName}
                 />
+              </View>
+
+              <Text style={styles.trackLabel}>Hangi sınava hazırlanıyorsun?</Text>
+              <View style={styles.trackRow}>
+                {EXAM_TRACK_OPTIONS.map((opt) => (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => setExamTrackLocal(opt.value)}
+                    style={[styles.trackCard, examTrack === opt.value && styles.trackCardActive]}>
+                    <Text style={styles.trackEmoji}>{opt.emoji}</Text>
+                    <Text style={styles.trackTitle}>{opt.title}</Text>
+                    <Text style={styles.trackSubtitle}>{opt.subtitle}</Text>
+                  </Pressable>
+                ))}
               </View>
 
               <TextInput
@@ -250,6 +273,28 @@ const styles = StyleSheet.create({
   },
   usernameHintOk: { color: AtlasColors.greenLight },
   usernameHintBad: { color: '#FFB4B4' },
+  trackLabel: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 12.5,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  trackRow: { gap: 10 },
+  trackCard: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.16)',
+    borderRadius: AtlasRadius.button,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  trackCardActive: {
+    backgroundColor: 'rgba(88,204,2,0.18)',
+    borderColor: AtlasColors.greenLight,
+  },
+  trackEmoji: { fontSize: 20, marginBottom: 2 },
+  trackTitle: { color: AtlasColors.white, fontSize: 14.5, fontWeight: '800' },
+  trackSubtitle: { color: 'rgba(255,255,255,0.6)', fontSize: 11.5, marginTop: 2 },
   error: {
     color: '#FFB4B4',
     fontSize: 13,

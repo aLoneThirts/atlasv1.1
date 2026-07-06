@@ -19,7 +19,7 @@
  * Ayrıca yıllar arası puan enflasyonu nedeniyle aynı puan farklı yıllarda
  * farklı sıraya denk gelir — bu KESİN bir sıra DEĞİL, yaklaşık bir tahmindir.
  * UI'da mutlaka "~yaklaşık" ibaresi ve "kesin sıra için ÖSYM sonuç belgeni
- * kontrol et" uyarısı gösterilmeli (bkz. puan-hesapla.tsx).
+ * kontrol et" uyarısı gösterilmeli (bkz. (tabs)/puan.tsx).
  *
  * atlas-mobile (Metro, watchFolders) bu dosyayı da yks-calc.ts gibi
  * @shared/rank-estimator üzerinden import eder.

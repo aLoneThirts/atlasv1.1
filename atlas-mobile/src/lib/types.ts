@@ -143,3 +143,27 @@ export type ExamCalcResult = {
   obpKatkisi: number;
   yerlestirmePuani: number;
 };
+
+/** yks_programs satırı — YÖK Atlas'tan toplanan lisans programı (bkz. supabase/yks_programs.sql). */
+export type YksProgramSummary = {
+  id: string;
+  university: string;
+  universityType: string | null;
+  city: string | null;
+  faculty: string | null;
+  department: string;
+  scoreType: import('@shared/yks-calc').ScoreType;
+  language: string | null;
+  scholarship: string | null;
+};
+
+/** yks_program_stats satırı — bir programın bir yıldaki taban puan/sıralama/net ortalaması. */
+export type YksProgramStat = {
+  year: number;
+  minScore: number | null;
+  minRank: number | null;
+  avgTytNet: number | null;
+  avgAytNet: number | null;
+  quota: number | null;
+  placed: number | null;
+};

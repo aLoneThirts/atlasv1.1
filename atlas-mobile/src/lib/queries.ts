@@ -23,6 +23,8 @@ import type {
   TopicStatus,
   UnitNode,
   WeeklyExam,
+  YksProgramStat,
+  YksProgramSummary,
 } from './types';
 import type { NetMap, ScoreType } from '@shared/yks-calc';
 import type { RankPoint } from '@shared/rank-estimator';
@@ -81,6 +83,16 @@ export async function updateProfile(patch: Partial<Profile>): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * exam_track hassas bir kolon (monetization.sql'de client GRANT'ından
+ * bilerek dışarıda bırakıldı) — yalnız supabase/exam_track.sql'deki
+ * set_exam_track RPC'siyle değişir (dev_set_premium ile aynı düzen).
+ */
+export async function setExamTrack(track: Profile['exam_track']): Promise<void> {
+  const { error } = await supabase.rpc('set_exam_track', { new_track: track });
+  if (error) throw error;
+}
+
 /* ------------------------------------------------------------
    ÖSYM puan hesaplama (görev listesi madde 10/11)
 ------------------------------------------------------------ */
@@ -129,6 +141,55 @@ export async function fetchScoreRankDistribution(year: number, scoreType: ScoreT
     .eq('score_type', scoreType);
   if (error) throw error;
   return (data ?? []) as RankPoint[];
+}
+
+/**
+ * Üniversite ve/veya bölüm adına göre yks_programs araması (bkz.
+ * tools/yokatlas-scraper) — okul/bölüm bazlı sıralama/net ortalaması
+ * sorgulama özelliği için (Puan sekmesi, "Okul/Bölüm Sırala").
+ *
+ * Düz `.ilike()` yerine `search_yks_programs` RPC'si kullanılıyor (bkz.
+ * supabase/yks_programs_search.sql) — veritabanının locale'i "İ" harfini
+ * doğru küçültmediğinden (`lower('İSTANBUL')` "istanbul" üretmiyor), düz
+ * ilike kullanıcı "istanbul" yazınca hiç sonuç bulamıyordu (test edilip
+ * doğrulandı). RPC İ/I/ı'yı arama sırasında tek forma indirgeyip eşleştiriyor.
+ */
+export async function searchYksPrograms(university: string, department: string): Promise<YksProgramSummary[]> {
+  const { data, error } = await supabase.rpc('search_yks_programs', {
+    q_university: university.trim(),
+    q_department: department.trim(),
+  });
+  if (error) throw error;
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: r.id as string,
+    university: r.university as string,
+    universityType: r.university_type as string | null,
+    city: r.city as string | null,
+    faculty: r.faculty as string | null,
+    department: r.department as string,
+    scoreType: r.score_type as YksProgramSummary['scoreType'],
+    language: r.language as string | null,
+    scholarship: r.scholarship as string | null,
+  }));
+}
+
+/** Bir yks_programs satırının yıllara göre taban puan/sıralama/net ortalaması (en yeni yıl önce). */
+export async function fetchProgramStats(programId: string): Promise<YksProgramStat[]> {
+  const { data, error } = await supabase
+    .from('yks_program_stats')
+    .select('year, min_score, min_rank, avg_tyt_net, avg_ayt_net, quota, placed')
+    .eq('program_id', programId)
+    .order('year', { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    year: r.year as number,
+    minScore: r.min_score as number | null,
+    minRank: r.min_rank as number | null,
+    avgTytNet: r.avg_tyt_net as number | null,
+    avgAytNet: r.avg_ayt_net as number | null,
+    quota: r.quota as number | null,
+    placed: r.placed as number | null,
+  }));
 }
 
 export async function fetchXpToday(): Promise<number> {
