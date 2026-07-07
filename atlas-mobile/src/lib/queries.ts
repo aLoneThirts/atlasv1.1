@@ -350,6 +350,16 @@ export async function fetchContinueTarget(isPremium: boolean): Promise<ContinueT
   return null;
 }
 
+/**
+ * Konu özeti (seed_tarih_full.sql ile gelen topics.summary) — konu akışının
+ * ilk adımı olan özet ekranı için. Özet yoksa null döner.
+ */
+export async function fetchTopicSummary(topicId: string): Promise<string | null> {
+  const { data, error } = await supabase.from('topics').select('summary').eq('id', topicId).single();
+  if (error) throw error;
+  return (data?.summary as string | null) ?? null;
+}
+
 /* ------------------------------------------------------------
    Sorular + quiz bitişi
 ------------------------------------------------------------ */

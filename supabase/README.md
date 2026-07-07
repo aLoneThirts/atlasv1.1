@@ -22,6 +22,7 @@ Dashboard → **SQL Editor** → dosya içeriğini yapıştır → Run. **Sıra 
 | 11 | `profile-names.sql` | `first_name`/`last_name` kolonları + Google girişinde de kullanıcı adı sorulması (onboarding genişletildi) | ⬜ çalıştır |
 | 12 | `yks_programs_search.sql` | `turkish_casefold()` + `search_yks_programs()` — okul/bölüm arama (İ/ı harf düzeltmesi) | ⬜ çalıştır |
 | 13 | `tercih_robotu.sql` | Tercih Robotu RPC'si (`tercih_oner`) — sıra/puan + filtre → risk sınıflı program önerileri (madde 3). **Bağımlılık:** `yks_programs.sql` + `yks_programs_search.sql` (turkish_casefold) önce çalışmış olmalı | ⬜ çalıştır |
+| 14 | `seed_tarih_full.sql` | **TAM TYT Tarih içeriği** — 54 ünite / 111 konu (özetli) / 240 soru / 222 bilgi kartı. `topics.summary` kolonunu ekler. `seed_tarih.sql`'in Tarih kısmının yerine geçer (mevcut Tarih içeriğini silip yeniden yükler; Coğrafya/Felsefe'ye dokunmaz). Otomatik üretilir: `node tools/build-tarih-seed.mjs` (kaynak `supabase/content/tarih/*.tsv`). Tekrar çalıştırılabilir. | ⬜ çalıştır |
 
 `finish_quiz.sql` tekrar çalıştırılabilir (create or replace); `seed_tarih.sql`
 idempotenttir — Tarih içeriği zaten varsa hiçbir şey yazmaz. `username.sql`

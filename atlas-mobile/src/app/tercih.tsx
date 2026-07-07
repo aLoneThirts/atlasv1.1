@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
 import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
+import { TR_CITIES, foldTr } from '@/constants/tr-cities';
 import { fetchTercihOnerileri } from '@/lib/queries';
 import { useThemeMode } from '@/lib/theme-context';
 import type { TercihOneri, TercihRisk } from '@/lib/types';
@@ -62,7 +63,7 @@ export default function TercihScreen() {
   const [score, setScore] = useState('');
   const [scoreType, setScoreType] = useState<ScoreType | null>('SAY');
   const [year, setYear] = useState(YEARS[0]);
-  const [risk, setRisk] = useState<TercihRisk | null>('dengeli');
+  const [risk, setRisk] = useState<TercihRisk | null>(null); // varsayılan: Hepsi
   const [uniType, setUniType] = useState<'DEVLET' | 'VAKIF' | null>(null);
   const [city, setCity] = useState('');
   const [program, setProgram] = useState('');
@@ -228,7 +229,7 @@ export default function TercihScreen() {
 
           {/* Arama alanları */}
           <Card style={styles.card}>
-            <LabeledInput
+            <AutocompleteInput
               label="ŞEHİR"
               placeholder="ör. Ankara (boş = hepsi)"
               value={city}
@@ -236,6 +237,7 @@ export default function TercihScreen() {
                 setCity(v);
                 setResults(null);
               }}
+              suggestions={TR_CITIES}
               surface={surface}
               onSubmit={getir}
             />
@@ -389,6 +391,69 @@ function LabeledInput({
   );
 }
 
+/**
+ * Yazdıkça statik listeden süzülen otomatik-tamamlama alanı. Serbest metne de
+ * izin verir (kullanıcı listede olmayan bir şey yazabilir). Şimdilik yalnız
+ * şehir (81 il) besleniyor; okul/bölüm önerileri sonraki turda (distinct RPC).
+ */
+function AutocompleteInput({
+  label,
+  placeholder,
+  value,
+  onChangeText,
+  suggestions,
+  surface,
+  onSubmit,
+}: {
+  label: string;
+  placeholder: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  suggestions: readonly string[];
+  surface: (typeof AtlasSurface)[keyof typeof AtlasSurface];
+  onSubmit?: () => void;
+}) {
+  const [focused, setFocused] = useState(false);
+  const q = foldTr(value.trim());
+  const matches =
+    focused && q.length > 0
+      ? suggestions.filter((s) => foldTr(s).includes(q) && foldTr(s) !== q).slice(0, 6)
+      : [];
+
+  return (
+    <View style={styles.labeledInput}>
+      <Text style={[styles.groupLabel, { color: surface.textSecondary }]}>{label}</Text>
+      <TextInput
+        style={[styles.input, { color: surface.text, borderColor: surface.cardBorder }]}
+        placeholder={placeholder}
+        placeholderTextColor={surface.textSecondary}
+        value={value}
+        onChangeText={onChangeText}
+        onFocus={() => setFocused(true)}
+        // seçime dokunma blur'dan önce kaydolsun diye kapanışı geciktir
+        onBlur={() => setTimeout(() => setFocused(false), 150)}
+        onSubmitEditing={onSubmit}
+        autoCapitalize="none"
+      />
+      {matches.length > 0 && (
+        <View style={[styles.suggestBox, { backgroundColor: surface.card, borderColor: surface.cardBorder }]}>
+          {matches.map((s) => (
+            <Pressable
+              key={s}
+              onPress={() => {
+                onChangeText(s);
+                setFocused(false);
+              }}
+              style={styles.suggestRow}>
+              <Text style={[styles.suggestText, { color: surface.text }]}>{s}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 function ResultCard({
   item,
   surface,
@@ -485,6 +550,14 @@ const styles = StyleSheet.create({
   pill: { borderWidth: 1.5, borderRadius: AtlasRadius.pill, paddingVertical: 7, paddingHorizontal: 14 },
   pillText: { fontFamily: AtlasFonts.bodyBold, fontSize: 12 },
   labeledInput: { gap: 6 },
+  suggestBox: {
+    borderWidth: 1.5,
+    borderRadius: AtlasRadius.button,
+    overflow: 'hidden',
+    marginTop: -2,
+  },
+  suggestRow: { paddingHorizontal: 14, paddingVertical: 10 },
+  suggestText: { fontSize: 14, fontFamily: AtlasFonts.bodySemi },
   onlisansRow: { flexDirection: 'row', alignItems: 'center', gap: 10, opacity: 0.6 },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2 },
   onlisansLabel: { fontSize: 12.5, fontFamily: AtlasFonts.bodySemi },

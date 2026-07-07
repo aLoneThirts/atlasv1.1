@@ -56,16 +56,19 @@ export default function CastleScreen() {
       Alert.alert('🔒 Kilitli', 'Önce aktif konuyu fethet!');
       return;
     }
-    if (topic.status === 'done') {
-      router.push({
-        pathname: '/kale/[subjectId]/kartlar',
-        params: { subjectId: subjectId!, topicId: topic.id, topicTitle: topic.title },
-      } as never);
-      return;
-    }
+    // Konu akışı: önce özet (bilgi) → sorular → (tamamlanınca) flashcard.
+    // Özet ekranı status'e göre "Bilgi Kartları" butonunu da gösterir.
     router.push({
-      pathname: '/kale/[subjectId]/quiz',
-      params: { subjectId: subjectId!, topicId: topic.id, topicTitle: topic.title },
+      pathname: '/kale/[subjectId]/ozet',
+      params: {
+        subjectId: subjectId!,
+        topicId: topic.id,
+        topicTitle: topic.title,
+        status: topic.status,
+        color: subject?.color ?? AtlasColors.violet,
+        colorDark: subject?.color_dark ?? subject?.color ?? AtlasColors.violet,
+        emoji: subject?.emoji ?? '',
+      },
     } as never);
   };
 
