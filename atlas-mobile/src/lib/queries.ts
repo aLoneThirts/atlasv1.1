@@ -19,6 +19,8 @@ import type {
   ScoreCoefficients,
   Subject,
   SubjectSummary,
+  TercihFiltre,
+  TercihOneri,
   TopicNode,
   TopicStatus,
   UnitNode,
@@ -189,6 +191,46 @@ export async function fetchProgramStats(programId: string): Promise<YksProgramSt
     avgAytNet: r.avg_ayt_net as number | null,
     quota: r.quota as number | null,
     placed: r.placed as number | null,
+  }));
+}
+
+/**
+ * Tercih robotu — kullanıcının sırası/puanı + filtrelerle risk sınıflı program
+ * önerileri (bkz. supabase/tercih_robotu.sql → tercih_oner RPC). Veri kaynağı
+ * yks_programs/yks_program_stats (tools/yokatlas-scraper ile toplanıp yüklenir);
+ * tablolar boşsa RPC boş liste döner (hata değil).
+ */
+export async function fetchTercihOnerileri(f: TercihFiltre): Promise<TercihOneri[]> {
+  const { data, error } = await supabase.rpc('tercih_oner', {
+    p_score_type: f.scoreType ?? null,
+    p_year: f.year,
+    p_rank: f.rank ?? null,
+    p_score: f.score ?? null,
+    p_risk: f.risk ?? null,
+    p_city: f.city ?? null,
+    p_university_type: f.universityType ?? null,
+    p_q_program: f.qProgram ?? '',
+    p_q_university: f.qUniversity ?? '',
+    p_include_onlisans: f.includeOnlisans ?? false,
+    p_limit: f.limit ?? 50,
+  });
+  if (error) throw error;
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    programId: r.program_id as string,
+    university: r.university as string,
+    universityType: r.university_type as string | null,
+    city: r.city as string | null,
+    faculty: r.faculty as string | null,
+    department: r.department as string,
+    scoreType: r.score_type as string,
+    language: r.language as string | null,
+    scholarship: r.scholarship as string | null,
+    year: r.year as number,
+    minScore: r.min_score as number | null,
+    minRank: r.min_rank as number | null,
+    quota: r.quota as number | null,
+    risk: r.risk as TercihOneri['risk'],
+    gap: r.gap as number | null,
   }));
 }
 

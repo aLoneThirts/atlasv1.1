@@ -20,6 +20,8 @@ Dashboard → **SQL Editor** → dosya içeriğini yapıştır → Run. **Sıra 
 | 9 | `score_rank_distribution.sql` | Puan-sıra dağılımı VIEW'ı (yks_program_stats üzerinden, ayrı scraper gerekmedi) | ✅ yüklendi |
 | 10 | `score_coefficients.sql` | ÖSYM puan hesaplama şeması (`score_coefficients` placeholder katsayılar + `user_exam_results`) | ✅ yüklendi |
 | 11 | `profile-names.sql` | `first_name`/`last_name` kolonları + Google girişinde de kullanıcı adı sorulması (onboarding genişletildi) | ⬜ çalıştır |
+| 12 | `yks_programs_search.sql` | `turkish_casefold()` + `search_yks_programs()` — okul/bölüm arama (İ/ı harf düzeltmesi) | ⬜ çalıştır |
+| 13 | `tercih_robotu.sql` | Tercih Robotu RPC'si (`tercih_oner`) — sıra/puan + filtre → risk sınıflı program önerileri (madde 3). **Bağımlılık:** `yks_programs.sql` + `yks_programs_search.sql` (turkish_casefold) önce çalışmış olmalı | ⬜ çalıştır |
 
 `finish_quiz.sql` tekrar çalıştırılabilir (create or replace); `seed_tarih.sql`
 idempotenttir — Tarih içeriği zaten varsa hiçbir şey yazmaz. `username.sql`

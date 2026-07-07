@@ -29,6 +29,7 @@ function RootNavigator() {
           <Stack.Screen name="ayarlar" />
           <Stack.Screen name="premium" />
           <Stack.Screen name="reklamsiz" />
+          <Stack.Screen name="tercih" />
         </Stack.Protected>
         <Stack.Protected guard={!!session && onboardingCompleted === false}>
           <Stack.Screen name="onboarding" />

@@ -167,3 +167,43 @@ export type YksProgramStat = {
   quota: number | null;
   placed: number | null;
 };
+
+/** Tercih robotu risk seviyesi — kullanıcının sırası/puanı vs programın tabanı. */
+export type TercihRisk = 'guvenli' | 'dengeli' | 'riskli';
+
+/** tercih_oner RPC'sine gönderilen filtre (bkz. supabase/tercih_robotu.sql). */
+export type TercihFiltre = {
+  scoreType?: import('@shared/yks-calc').ScoreType | null;
+  year: number;
+  /** Kullanıcı sırası — verilirse puana göre önceliklidir. */
+  rank?: number | null;
+  /** Veya yerleştirme puanı. */
+  score?: number | null;
+  risk?: TercihRisk | null;
+  city?: string | null;
+  universityType?: 'DEVLET' | 'VAKIF' | null;
+  qProgram?: string;
+  qUniversity?: string;
+  includeOnlisans?: boolean;
+  limit?: number;
+};
+
+/** tercih_oner RPC sonucu — bir programın kullanıcı için risk-sınıflı önerisi. */
+export type TercihOneri = {
+  programId: string;
+  university: string;
+  universityType: string | null;
+  city: string | null;
+  faculty: string | null;
+  department: string;
+  scoreType: string;
+  language: string | null;
+  scholarship: string | null;
+  year: number;
+  minScore: number | null;
+  minRank: number | null;
+  quota: number | null;
+  risk: TercihRisk;
+  /** Kullanıcı ile taban arasındaki mutlak fark (sıra farkı veya puan farkı). */
+  gap: number | null;
+};

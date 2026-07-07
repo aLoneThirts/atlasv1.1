@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -83,6 +84,7 @@ function emptyAnswers(scoreType: ScoreTypeUi): Answers {
 }
 
 export default function PuanScreen() {
+  const router = useRouter();
   const { mode } = useThemeMode();
   const surface = AtlasSurface[mode];
 
@@ -165,6 +167,16 @@ export default function PuanScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll}>
+          <Card style={styles.robotCard}>
+            <Text style={[styles.robotTitle, { color: surface.text }]}>🎯 Tercih Robotu</Text>
+            <Text style={[styles.robotSub, { color: surface.textSecondary }]}>
+              Sıralana veya puanına göre risk seviyeli (güvenli/dengeli/riskli) program önerileri al.
+            </Text>
+            <Btn3D variant="orange" size="small" onPress={() => router.push('/tercih')}>
+              Tercih Robotunu Aç
+            </Btn3D>
+          </Card>
+
           <View style={styles.tabRow}>
             {(Object.keys(SCORE_TYPE_LABELS) as ScoreTypeUi[]).map((st) => (
               <Pressable
@@ -476,6 +488,9 @@ const styles = StyleSheet.create({
   yearText: { fontFamily: AtlasFonts.bodyBold, fontSize: 13, color: AtlasColors.gray },
   yearTextActive: { color: AtlasColors.white },
   card: { gap: 12 },
+  robotCard: { gap: 8 },
+  robotTitle: { fontSize: 15, fontFamily: AtlasFonts.heading },
+  robotSub: { fontSize: 12, fontFamily: AtlasFonts.bodySemi, lineHeight: 17 },
   subjectRow: { gap: 6 },
   subjectHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   subjectLabel: { fontSize: 13, fontFamily: AtlasFonts.bodyBold },
