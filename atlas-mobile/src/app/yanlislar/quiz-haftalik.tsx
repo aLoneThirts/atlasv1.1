@@ -12,7 +12,7 @@ import { HeartsRow } from '@/components/ui/hearts-row';
 import { Pill } from '@/components/ui/pill';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
-import { fetchCurrentWeeklyExam, fetchProfile, fetchQuestionsByIds, finishQuiz, loseHeart } from '@/lib/queries';
+import { fetchCurrentWeeklyExam, fetchQuestionsByIds, finishQuiz, getHearts, loseHeart } from '@/lib/queries';
 import type { FinishQuizResult, Question, QuizAnswer } from '@/lib/types';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
@@ -43,7 +43,7 @@ export default function WeeklyQuizScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const [exam, profile] = await Promise.all([fetchCurrentWeeklyExam(), fetchProfile()]);
+        const [exam, hearts] = await Promise.all([fetchCurrentWeeklyExam(), getHearts()]);
         if (!exam || exam.question_ids.length === 0) {
           setPhase('error');
           return;
@@ -54,7 +54,7 @@ export default function WeeklyQuizScreen() {
           return;
         }
         setQuestions(qs);
-        setLocalHearts(profile.hearts);
+        setLocalHearts(hearts.hearts);
         setPhase('quiz');
       } catch {
         setPhase('error');
@@ -144,7 +144,7 @@ export default function WeeklyQuizScreen() {
     return (
       <HeartsEmptyCard
         title="Canın Bitti!"
-        message={'Sınavı tamamlayacak canın kalmadı.\nCan satın alıp devam edebilirsin.'}
+        message={'Sınavı tamamlayacak canın kalmadı.\nBiraz bekleyip yenilenmesini bekle ya da satın al.'}
         onHeartsAvailable={(h) => advance(h)}>
         <Btn3D variant="blue" onPress={toMistakes}>
           Yanlışlara Dön

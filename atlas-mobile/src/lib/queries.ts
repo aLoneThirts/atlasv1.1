@@ -81,6 +81,19 @@ export async function loseHeart(): Promise<number> {
   return (data as { hearts: number }).hearts;
 }
 
+export type HeartsState = { hearts: number; hearts_updated_at: string; next_heart_at: string | null };
+
+/**
+ * get_hearts() RPC — 8 saatte 1 can yenilemesini (BACKEND.md §4.1) hesaplayıp
+ * kalıcı yazar, güncel değeri + bir sonraki can zamanını döner. Kale/quiz
+ * ekranları açılırken çağrılmalı (UI'da geri sayım göstermek için).
+ */
+export async function getHearts(): Promise<HeartsState> {
+  const { data, error } = await supabase.rpc('get_hearts');
+  if (error) throw error;
+  return data as HeartsState;
+}
+
 /**
  * RLS "own profile" zaten çağıranın satırıyla sınırlar, ama supabase-js
  * filtresiz update/delete'i KENDİSİ reddediyor ("UPDATE requires a WHERE

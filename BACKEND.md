@@ -90,11 +90,14 @@ sabitlenmiş; "ÖNERİ" = henüz kararlaştırılmadı, Göktuğ'la netleştirin
   bitmesini beklemez, bkz. §6.1 notu). 0 canda quiz'e devam edilemez: "Canın
   Bitti" ekranına düşer VE otomatik olarak can satın alma ekranına (`/odeme`)
   yönlendirilir — kullanıcı ayrıca bir butona basmak zorunda kalmaz.
-- **KESİN (2026-07-08, karar değişti):** Can KENDİLİĞİNDEN YENİLENMEZ.
-  Bir önceki karar "8 saatte 1 can" idi (`calc_regen_hearts()`/`get_hearts()`
-  ile denendi) — test edilince İSTENMEDİ ve tamamen kaldırıldı
-  (bkz. `supabase/hearts.sql` başındaki drop'lar). Can 0'a düşünce yalnız
-  satın alarak geri gelir, başka hiçbir şekilde artmaz.
+- **KESİN (2026-07-08, son karar):** Can **8 saatte 1** kendiliğinden
+  yenilenir (`calc_regen_hearts()`/`get_hearts()`, bkz. `supabase/hearts.sql`).
+  Bu özellik aynı gün önce eklendi, sonra "olmasın" denip tamamen kaldırıldı,
+  sonra TEKRAR istenip son haliyle geri getirildi — bu kez kullanıcı arayüzünde
+  **görünür bir geri sayımla** birlikte (kale ekranı, ana sayfa, "Canın Bitti"
+  ekranı: "+1 can: Xsa Ydk"). Kullanıcı yenilenme mekanizmasını UI'dan görüp
+  öğrenebilmeli — bu şart. Ayrıca can satın alarak da (iyzico) anında 5/5'e
+  doldurulabilir; iki mekanizma birbirini dışlamaz.
 - Ekstra can gerçek parayla satın alınır: **anlık tam doldurma** (5/5),
   tüketilebilir ürün — **iyzico** üzerinden (bkz. §7 ve `supabase/functions/iyzico-pay/`
   + `supabase/hearts.sql` — `refill_hearts()` RPC, iyzico ödemesi başarılı
@@ -249,11 +252,16 @@ içeriği **prototipte hazır**: `index.html` içinde `TOPIC_QS` (5 soru),
 (4 örnek). Bunları SQL insert'e çevir (küçük script yeterli). Sonrası içerik
 ekibi/editör işi.
 
-### 6.6 Can yenileme — KALDIRILDI, TEKRAR AÇILMAYACAK
-"8 saatte 1 can" zamanla yenileme denendi (`calc_regen_hearts()`/`get_hearts()`),
-test edilince istenmedi ve tamamen geri alındı (§4.1). Can artık yalnız
-`refill_hearts()` (satın alma) ile dolar. Bu bölümü/fonksiyonları tekrar
-eklemeden önce Göktuğ'la teyitleş — bir kez denenip reddedildi.
+### 6.6 Can yenileme — TAMAMLANDI (son karar)
+"8 saatte 1 can" (§4.1) uygulandı: `supabase/hearts.sql` içinde
+`calc_regen_hearts()` (saf hesap) + `get_hearts()` (RPC, kalıcı yazar +
+`next_heart_at` döner). İstemci kale/ana sayfa/"Canın Bitti" ekranlarını
+açarken `get_hearts()` çağırır ve geri sayımı gösterir (`components/hearts/
+hearts-empty-card.tsx`'teki `formatCountdown`). `lose_heart()` de (anlık can
+düşürme) önce bekleyen regen'i uygulayıp SONRA düşürür, geri sayımı düşüş
+anından yeniden başlatır. NOT: bu özellik bir kez eklenip kaldırılıp tekrar
+eklendi (aynı gün) — geri sayım UI'ı olmadan sadece sessiz regen istenmedi,
+şart olan kısım kullanıcının bunu GÖREBİLMESİ.
 
 ---
 
@@ -283,7 +291,7 @@ eklemeden önce Göktuğ'la teyitleş — bir kez denenip reddedildi.
 
 ## 9. Açık Kararlar (Göktuğ'la netleştirilecek)
 
-1. ~~Can zamanla yenilensin mi?~~ → **HAYIR, karar kesin** (§4.1, §6.6) — yalnız satın alarak dolar. Açık kalan: "reklam izle can kazan" olacak mı?
+1. ~~Can zamanla yenilensin mi?~~ → **EVET, 8 saatte 1 + görünür geri sayım — karar kesin** (§4.1, §6.6). Açık kalan: "reklam izle can kazan" olacak mı?
 2. ~~Abonelik altyapısı: RevenueCat mi, StoreKit2/Play Billing doğrudan mı?~~ → **iyzico'ya karar verildi** (§4.9, §7).
 3. Streak dondurma (Duolingo "streak freeze") olacak mı?
 4. AYT içeriğinin v1'e girip girmeyeceği (şu an sadece harita toggle'ı var).

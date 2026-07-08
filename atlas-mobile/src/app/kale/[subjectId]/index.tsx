@@ -1,16 +1,17 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { formatCountdown } from '@/components/hearts/hearts-empty-card';
 import { GlowHalo } from '@/components/ui/glow-halo';
 import { HeartsRow } from '@/components/ui/hearts-row';
 import { PulsingBadge } from '@/components/ui/animated/pulsing-badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AtlasColors, AtlasFonts, AtlasRadius, ledgeShadow, ledgeShadowWeb } from '@/constants/atlas-theme';
-import { fetchProfile, fetchSubjectTree, fetchSubjects } from '@/lib/queries';
-import type { Profile, Subject, TopicNode, UnitNode } from '@/lib/types';
+import { fetchSubjectTree, fetchSubjects, getHearts, type HeartsState } from '@/lib/queries';
+import type { Subject, TopicNode, UnitNode } from '@/lib/types';
 
 const SECTION_EMOJI = ['🏹', '🏰', '⚔️', '🛡️'];
 
@@ -20,21 +21,22 @@ export default function CastleScreen() {
   const router = useRouter();
   const [subject, setSubject] = useState<Subject | null>(null);
   const [units, setUnits] = useState<UnitNode[] | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [hearts, setHearts] = useState<HeartsState | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!subjectId) return;
     try {
       setError(null);
-      const [subjects, tree, p] = await Promise.all([
+      const [subjects, tree, h] = await Promise.all([
         fetchSubjects(),
         fetchSubjectTree(subjectId),
-        fetchProfile(),
+        getHearts(),
       ]);
       setSubject(subjects.find((s) => s.id === subjectId) ?? null);
       setUnits(tree);
-      setProfile(p);
+      setHearts(h);
     } catch {
       setError('Kale yüklenemedi — internetini kontrol et.');
     }
@@ -45,6 +47,11 @@ export default function CastleScreen() {
       load();
     }, [load]),
   );
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const allTopics = units?.flatMap((u) => u.topics) ?? [];
   const doneCount = allTopics.filter((t) => t.status === 'done').length;
@@ -90,7 +97,12 @@ export default function CastleScreen() {
                 {subject?.emoji} {subject?.name ?? ''}
               </Text>
             </View>
-            <HeartsRow hearts={profile?.hearts ?? 5} size={14} />
+            <View style={styles.heartsCol}>
+              <HeartsRow hearts={hearts?.hearts ?? 5} size={14} />
+              {hearts && hearts.hearts < 5 && hearts.next_heart_at && (
+                <Text style={styles.heartsCountdown}>+1 can: {formatCountdown(new Date(hearts.next_heart_at).getTime() - now)}</Text>
+              )}
+            </View>
           </View>
           <View style={styles.progRow}>
             <ProgressBar progress={frac} height={8} trackColor="rgba(0,0,0,0.25)" color={AtlasColors.yellow} />
@@ -205,6 +217,8 @@ const styles = StyleSheet.create({
   backPill: { alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 4 },
   backText: { color: 'rgba(255,255,255,0.9)', fontFamily: AtlasFonts.bodyBold, fontSize: 13 },
   row1: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heartsCol: { alignItems: 'flex-end', gap: 2 },
+  heartsCountdown: { color: 'rgba(255,255,255,0.8)', fontFamily: AtlasFonts.bodyBold, fontSize: 9.5 },
   titles: { flex: 1 },
   smallLabel: { color: 'rgba(255,255,255,0.75)', fontFamily: AtlasFonts.heading, fontSize: 10.5, letterSpacing: 0.6 },
   bigTitle: { color: AtlasColors.white, fontFamily: AtlasFonts.heading, fontSize: 19, marginTop: 2 },

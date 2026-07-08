@@ -1,16 +1,17 @@
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { formatCountdown } from '@/components/hearts/hearts-empty-card';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
 import { HeartsRow } from '@/components/ui/hearts-row';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { FireBadge } from '@/components/ui/animated/fire-badge';
 import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
-import { fetchContinueTarget, fetchOpenMistakeCount, fetchProfile, fetchXpToday } from '@/lib/queries';
+import { fetchContinueTarget, fetchOpenMistakeCount, fetchProfile, fetchXpToday, getHearts, type HeartsState } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { useThemeMode } from '@/lib/theme-context';
 import type { ContinueTarget, Profile } from '@/lib/types';
@@ -24,6 +25,8 @@ export default function HomeScreen() {
   const { mode, toggle } = useThemeMode();
   const surface = AtlasSurface[mode];
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [hearts, setHearts] = useState<HeartsState | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [xpToday, setXpToday] = useState(0);
   const [target, setTarget] = useState<ContinueTarget | null>(null);
   const [mistakeCount, setMistakeCount] = useState(0);
@@ -34,15 +37,17 @@ export default function HomeScreen() {
     try {
       setError(null);
       const p = await fetchProfile();
-      const [xp, t, mc] = await Promise.all([
+      const [xp, t, mc, h] = await Promise.all([
         fetchXpToday(),
         fetchContinueTarget(p.is_premium),
         fetchOpenMistakeCount(),
+        getHearts(),
       ]);
       setProfile(p);
       setXpToday(xp);
       setTarget(t);
       setMistakeCount(mc);
+      setHearts(h);
     } catch {
       setError('Veriler yüklenemedi — internetini kontrol edip aşağı çek.');
     }
@@ -53,6 +58,11 @@ export default function HomeScreen() {
       load();
     }, [load]),
   );
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -108,9 +118,14 @@ export default function HomeScreen() {
               <Text style={[styles.statLabel, { color: surface.textSecondary }]}>Günlük Seri</Text>
             </Card>
             <Card style={styles.statCard}>
-              <HeartsRow hearts={profile?.hearts ?? 5} size={16} />
-              <Text style={[styles.statNum, { color: surface.text }]}>{profile?.hearts ?? 5}</Text>
+              <HeartsRow hearts={hearts?.hearts ?? profile?.hearts ?? 5} size={16} />
+              <Text style={[styles.statNum, { color: surface.text }]}>{hearts?.hearts ?? profile?.hearts ?? 5}</Text>
               <Text style={[styles.statLabel, { color: surface.textSecondary }]}>Can</Text>
+              {hearts && hearts.hearts < 5 && hearts.next_heart_at && (
+                <Text style={[styles.heartsCountdown, { color: surface.textSecondary }]}>
+                  +1: {formatCountdown(new Date(hearts.next_heart_at).getTime() - now)}
+                </Text>
+              )}
             </Card>
           </View>
 
@@ -229,6 +244,7 @@ const styles = StyleSheet.create({
   statCard: { flex: 1, alignItems: 'center', gap: 4, paddingVertical: 14 },
   statNum: { fontSize: 19, fontFamily: AtlasFonts.heading, color: AtlasColors.inkStrong },
   statLabel: { fontSize: 10, fontFamily: AtlasFonts.bodyBold, color: AtlasColors.gray },
+  heartsCountdown: { fontSize: 9, fontFamily: AtlasFonts.bodySemi, marginTop: -2 },
   goalCard: { gap: 9, marginBottom: 12 },
   goalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   goalTitle: { fontSize: 14, fontFamily: AtlasFonts.heading, color: AtlasColors.inkStrong },

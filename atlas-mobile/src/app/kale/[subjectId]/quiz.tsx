@@ -11,7 +11,7 @@ import { MascotPop } from '@/components/ui/animated/mascot-pop';
 import { HeartsRow } from '@/components/ui/hearts-row';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
-import { finishQuiz, fetchProfile, fetchTopicQuestions, loseHeart } from '@/lib/queries';
+import { finishQuiz, fetchTopicQuestions, getHearts, loseHeart } from '@/lib/queries';
 import type { FinishQuizResult, Question, QuizAnswer } from '@/lib/types';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
@@ -47,13 +47,13 @@ export default function QuizScreen() {
     if (!topicId) return;
     (async () => {
       try {
-        const [qs, profile] = await Promise.all([fetchTopicQuestions(topicId, 5), fetchProfile()]);
+        const [qs, hearts] = await Promise.all([fetchTopicQuestions(topicId, 5), getHearts()]);
         if (qs.length === 0) {
           setPhase('error');
           return;
         }
         setQuestions(qs);
-        setLocalHearts(profile.hearts);
+        setLocalHearts(hearts.hearts);
         setPhase('quiz');
       } catch {
         setPhase('error');
@@ -143,7 +143,7 @@ export default function QuizScreen() {
     return (
       <HeartsEmptyCard
         title="Canın Bitti!"
-        message={'Kaleyi savunacak askerin kalmadı.\nCan satın alıp devam edebilirsin.'}
+        message={'Kaleyi savunacak askerin kalmadı.\nBiraz bekleyip yenilenmesini bekle ya da satın al.'}
         onHeartsAvailable={(h) => advance(h)}>
         <Btn3D variant="orange" onPress={() => router.replace({ pathname: '/kale/[subjectId]', params: { subjectId: subjectId! } } as never)}>
           Kaleye Geri Dön
