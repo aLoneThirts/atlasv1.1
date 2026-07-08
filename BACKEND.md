@@ -81,19 +81,24 @@ Kullanıcı onboarding'de seçer: `tyt` veya `tyt_ayt_ea` (→ `profiles.exam_tr
 Backend'in doğru uygulaması gereken kurallar. "KESİN" = prototipte/briefte
 sabitlenmiş; "ÖNERİ" = henüz kararlaştırılmadı, Göktuğ'la netleştirin.
 
-### 4.1 Can (Hearts) — KESİN + ÖNERİ
-- Maksimum 5 can (`profiles.hearts`), **herkes için** (premium dahil — eski
-  "premium'da sınırsız can" kuralı kaldırıldı, karar değişti).
-- Quiz'de her yanlış cevap **−1 can**. 0 canda quiz'e devam edilemez ("Canın Bitti" ekranı).
+### 4.1 Can (Hearts) — KESİN
+- **Tek/global can havuzu:** maksimum 5 can (`profiles.hearts`), **7 dersin
+  tamamı için ortak** — ders bazlı ayrı bir can sistemi YOK ve olmayacak.
+  Herkes için geçerli (premium dahil — eski "premium'da sınırsız can" kuralı
+  kaldırıldı, karar değişti).
+- Quiz'de her yanlış cevap **−1 can**, ANINDA (`lose_heart()` RPC — quiz
+  bitmesini beklemez, bkz. §6.1 notu). 0 canda quiz'e devam edilemez: "Canın
+  Bitti" ekranına düşer VE otomatik olarak can satın alma ekranına (`/odeme`)
+  yönlendirilir — kullanıcı ayrıca bir butona basmak zorunda kalmaz.
+- **KESİN (2026-07-08, karar değişti):** Can KENDİLİĞİNDEN YENİLENMEZ.
+  Bir önceki karar "8 saatte 1 can" idi (`calc_regen_hearts()`/`get_hearts()`
+  ile denendi) — test edilince İSTENMEDİ ve tamamen kaldırıldı
+  (bkz. `supabase/hearts.sql` başındaki drop'lar). Can 0'a düşünce yalnız
+  satın alarak geri gelir, başka hiçbir şekilde artmaz.
 - Ekstra can gerçek parayla satın alınır: **anlık tam doldurma** (5/5),
-  tüketilebilir (consumable) IAP ürünü — RevenueCat üzerinden (bkz. §7 ve
-  `supabase/hearts.sql` — `refill_hearts()` RPC). v1'de mağaza hesapları
-  (Apple Developer / Google Play Console) henüz kurulmadığından
-  `atlas-mobile/src/lib/purchases.ts` şimdilik placeholder — gerçek satın
-  alma yerine doğrudan RPC'yi çağırıyor, ekranda "test modu" uyarısı var.
-- ÖNERİ: Zamanla yenilenme — 30 dk'da 1 can. Sunucu saatiyle hesap:
-  `hearts_updated_at` + geçen süre → istemci anlık değeri türetir, quiz
-  başında/sonunda DB'ye yazılır. Ayrı cron gerekmez.
+  tüketilebilir ürün — **iyzico** üzerinden (bkz. §7 ve `supabase/functions/iyzico-pay/`
+  + `supabase/hearts.sql` — `refill_hearts()` RPC, iyzico ödemesi başarılı
+  olunca Edge Function tarafından service_role ile çağrılır).
 
 ### 4.2 Seri (Streak) — KESİN
 - Gün içinde en az 1 quiz bitirmek seriyi +1 artırır (`streak_count`,
@@ -139,10 +144,13 @@ Konular ders içinde **lineer** açılır: bir konu `done` olunca sıradaki `loc
 - Ücretsiz kullanıcı: Tarih içeriği + temel özellikler. Koç, haftalık sınav,
   diğer dersler → premium. (Can artık premium'un bir parçası DEĞİL — §4.1'e bak,
   herkes aynı 5 can tavanına tabi, ekstra can ayrı parayla satın alınıyor.)
-- KARAR VERİLDİ: Abonelik doğrulaması RevenueCat (iOS+Android tek SDK) —
-  `profiles.is_premium` webhook'la güncellenecek. v1'de Apple Developer /
-  Google Play Console hesapları henüz kurulmadığı için gerçek IAP entegrasyonu
-  bekliyor (bkz. §4.1 not).
+- **KARAR DEĞİŞTİ — Abonelik doğrulaması iyzico** (RevenueCat'ten vazgeçildi;
+  Apple/Google mağaza hesapları kurulmadan, tüm platformlarda tek ödeme
+  sağlayıcısıyla ilerlemek için). `supabase/functions/iyzico-pay/` başarılı
+  ödeme sonrası `profiles.is_premium` + `premium_expires_at`'ı günceller;
+  süresi dolan abonelikler `expire-premium` Edge Function'ıyla (günlük cron)
+  kapatılır. ⚠️ Apple App Store, dijital abonelik için mağaza-dışı ödemeyi
+  kural ihlali sayabilir — bu risk v1'de bilerek kabul edildi (Göktuğ kararı).
 
 ---
 
@@ -187,7 +195,9 @@ finish_quiz(
 Adımlar (tek transaction):
 1. `quiz_attempts` satırı yaz (correct/wrong sayıları, finished_at).
 2. Yanlışlar → `mistakes` upsert; doğru çözülen single-mode sorusu → `resolved_at = now()`.
-3. Can düş: yanlış sayısı kadar, 0 altına inme; premium ise düşme.
+3. Can — burada DÜŞÜRÜLMEZ (her yanlışta anında `lose_heart()` ile zaten
+   düşmüş olur, bkz. §4.1, `supabase/hearts.sql`); yalnız güncel değeri okuyup
+   `hearts_left` olarak rapor eder.
 4. XP: doğru × 9 → `xp_events`.
 5. `p_mode='topic'` ise: `topic_progress` → done + stars; ders içi sıradaki konuyu `active` yap.
 6. Streak: `streak_updated_on` bugün (Europe/Istanbul) değilse güncelle.
@@ -239,10 +249,11 @@ içeriği **prototipte hazır**: `index.html` içinde `TOPIC_QS` (5 soru),
 (4 örnek). Bunları SQL insert'e çevir (küçük script yeterli). Sonrası içerik
 ekibi/editör işi.
 
-### 6.6 Can yenileme (karar sonrası)
-§4.1'deki ÖNERİ onaylanırsa ekstra backend işi yok — istemci
-`hearts + floor((now - hearts_updated_at)/30dk)` türetir, yazarken clamp'ler.
-İstenirse `get_hearts()` RPC ile sunucuda türet.
+### 6.6 Can yenileme — KALDIRILDI, TEKRAR AÇILMAYACAK
+"8 saatte 1 can" zamanla yenileme denendi (`calc_regen_hearts()`/`get_hearts()`),
+test edilince istenmedi ve tamamen geri alındı (§4.1). Can artık yalnız
+`refill_hearts()` (satın alma) ile dolar. Bu bölümü/fonksiyonları tekrar
+eklemeden önce Göktuğ'la teyitleş — bir kez denenip reddedildi.
 
 ---
 
@@ -253,6 +264,8 @@ ekibi/editör işi.
   `security definer` + `auth.uid()` kullanır — user_id parametre olarak alınmaz.
 - İçerik tabloları istemciden yazılamaz (seed dashboard/service_role ile).
 - DeepSeek API anahtarı yalnız `coach-chat` function env'inde.
+- iyzico API key/secret yalnız `iyzico-pay` function env'inde — istemci kart
+  bilgisini bu function'a gönderir, fiyat/imza/onay tamamen sunucu tarafında.
 - Premium kontrolü istemciye bırakılmaz: koç, haftalık sınav ve premium ders
   içeriği server tarafında da `is_premium` / `subjects.is_free` ile doğrulanır.
   (İçerik gating v1'de: premium olmayan kullanıcıya `is_free=false` derslerin
@@ -270,8 +283,8 @@ ekibi/editör işi.
 
 ## 9. Açık Kararlar (Göktuğ'la netleştirilecek)
 
-1. Can yenileme süresi (öneri: 1 can / 30 dk) ve "reklam izle can kazan" olacak mı?
-2. ~~Abonelik altyapısı: RevenueCat mi, StoreKit2/Play Billing doğrudan mı?~~ → **RevenueCat'e karar verildi.**
+1. ~~Can zamanla yenilensin mi?~~ → **HAYIR, karar kesin** (§4.1, §6.6) — yalnız satın alarak dolar. Açık kalan: "reklam izle can kazan" olacak mı?
+2. ~~Abonelik altyapısı: RevenueCat mi, StoreKit2/Play Billing doğrudan mı?~~ → **iyzico'ya karar verildi** (§4.9, §7).
 3. Streak dondurma (Duolingo "streak freeze") olacak mı?
 4. AYT içeriğinin v1'e girip girmeyeceği (şu an sadece harita toggle'ı var).
 5. Koç günlük proaktif bildirimleri (Flash Lite) v1'de mi v2'de mi?

@@ -14,7 +14,7 @@ Dashboard → **SQL Editor** → dosya içeriğini yapıştır → Run. **Sıra 
 | 3 | `seed_tarih.sql` | Tarih 6 konu/30 soru/12 kart + Coğrafya-Felsefe test içeriği | ⬜ çalıştır |
 | 4 | `username.sql` | username benzersizliği + kayıt formu desteği | ⬜ çalıştır |
 | 5 | `onboarding.sql` | `profiles.onboarding_completed` kolonu (hedef okul/bölüm ekranı) | ⬜ çalıştır |
-| 6 | `hearts.sql` | `refill_hearts()` RPC — ücretli can doldurma | ⬜ çalıştır |
+| 6 | `hearts.sql` | `refill_hearts()` (ücretli can doldurma) + `lose_heart()` (can artık quiz bitmeden, her yanlışta ANINDA düşer). Zamanla yenileme (8 saatte 1) denendi, **kaldırıldı** — dosyanın başındaki `drop function` satırları eski `calc_regen_hearts()`/`get_hearts()`'ı temizler | ⬜ (yeniden) çalıştır |
 | 7 | `monetization.sql` | `ads_removed` kolonu + kolon bazlı yazma kilidi + premium/reklamsız placeholder RPC'leri | ⬜ çalıştır |
 | 8 | `yks_programs.sql` | YÖK Atlas lisans program verisi (`yks_programs`+`yks_program_stats`) — scraper: `tools/yokatlas-scraper/` | ✅ yüklendi (12.063 program, 32.225 stat satırı, 2023-2025) |
 | 9 | `score_rank_distribution.sql` | Puan-sıra dağılımı VIEW'ı (yks_program_stats üzerinden, ayrı scraper gerekmedi) | ✅ yüklendi |
@@ -23,6 +23,8 @@ Dashboard → **SQL Editor** → dosya içeriğini yapıştır → Run. **Sıra 
 | 12 | `yks_programs_search.sql` | `turkish_casefold()` + `search_yks_programs()` — okul/bölüm arama (İ/ı harf düzeltmesi) | ⬜ çalıştır |
 | 13 | `tercih_robotu.sql` | Tercih Robotu RPC'si (`tercih_oner`) — sıra/puan + filtre → risk sınıflı program önerileri (madde 3). **Bağımlılık:** `yks_programs.sql` + `yks_programs_search.sql` (turkish_casefold) önce çalışmış olmalı | ⬜ çalıştır |
 | 14 | `seed_tarih_full.sql` | **TAM TYT Tarih içeriği** — 54 ünite / 111 konu (özetli) / 240 soru / 222 bilgi kartı. `topics.summary` kolonunu ekler. `seed_tarih.sql`'in Tarih kısmının yerine geçer (mevcut Tarih içeriğini silip yeniden yükler; Coğrafya/Felsefe'ye dokunmaz). Otomatik üretilir: `node tools/build-tarih-seed.mjs` (kaynak `supabase/content/tarih/*.tsv`). Tekrar çalıştırılabilir. | ⬜ çalıştır |
+| 15 | `premium_expiry.sql` | `profiles.premium_expires_at` kolonu — iyzico ile açılan premium'un süresi (BACKEND.md §4.9) | ⬜ çalıştır |
+| 16 | `payments.sql` | `payments` audit tablosu — iyzico ödeme denemelerinin kaydı, yalnız kullanıcı kendi satırını okur | ⬜ çalıştır |
 
 `finish_quiz.sql` tekrar çalıştırılabilir (create or replace); `seed_tarih.sql`
 idempotenttir — Tarih içeriği zaten varsa hiçbir şey yazmaz. `username.sql`
@@ -38,10 +40,16 @@ benzersizleştirir, sonra index/trigger/RPC'yi create or replace eder).
 dosya bunu GRANT ile kapatıyor — atlamayın.
 `hearts.sql` da tekrar çalıştırılabilir (create or replace).
 
-**ÖNEMLİ — `finish_quiz.sql`'i YENİDEN çalıştırman lazım:** can düşme kuralı
-değişti (premium artık sınırsız can değil, bkz. `hearts.sql` başlığı) —
-mevcut `finish_quiz` fonksiyonunu güncellemek için dosyayı tekrar yapıştırıp
-çalıştır.
+**ÖNEMLİ — `hearts.sql`'i VE `finish_quiz.sql`'i YENİDEN çalıştır:** iki
+değişiklik var: (1) zamanla can yenileme (8 saatte 1) tamamen kaldırıldı
+(BACKEND.md §4.1, §6.6 — test edilince istenmedi), eski `calc_regen_hearts()`/
+`get_hearts()` `drop function` ile temizleniyor; (2) can artık quiz bitmeden,
+her yanlış cevapta ANINDA `lose_heart()` ile düşüyor — önceden yalnız quiz
+TAMAMLANINCA `finish_quiz` içinde toplu düşüyordu, bu yüzden kullanıcı canı
+biterek quiz'i yarıda bırakırsa (finish_quiz hiç çağrılmadan) can DB'de hiç
+değişmiyordu ve sonra "can geri geldi" gibi görünüyordu — artık düzeldi.
+(Ayrıca can düşme kuralı daha önce değişmişti: premium artık sınırsız can
+değil, bkz. `hearts.sql` başlığı.)
 
 **Doğrulama:** SQL Editor'de
 `select count(*) from questions;` → 39 görmelisin (30 tarih + 6 coğrafya + 3 felsefe).
@@ -54,7 +62,8 @@ Dashboard → **Settings → API**:
 `atlas-mobile/.env` dosyasına yaz (yapıldı).
 
 ## 4. Edge Function'ları deploy et
-Kod repo'da hazır: `supabase/functions/coach-chat/` ve `supabase/functions/weekly-exam/`.
+Kod repo'da hazır: `supabase/functions/coach-chat/`, `supabase/functions/weekly-exam/`,
+`supabase/functions/iyzico-pay/`, `supabase/functions/expire-premium/`.
 
 ```bash
 # repo kökünde (bir kere): Supabase CLI'a login + projeyi bağla
@@ -63,11 +72,17 @@ npx supabase link --project-ref zfhmvlxgrlmripwpawoh
 
 # secret'lar (service role zaten function env'inde otomatik var)
 npx supabase secrets set DEEPSEEK_API_KEY=<platform.deepseek.com anahtarın>
-npx supabase secrets set CRON_SECRET=<uzun rastgele bir dize>   # weekly-exam koruması
+npx supabase secrets set CRON_SECRET=<uzun rastgele bir dize>   # weekly-exam + expire-premium koruması
+npx supabase secrets set IYZICO_API_KEY=<iyzico sandbox/prod api key>
+npx supabase secrets set IYZICO_SECRET_KEY=<iyzico sandbox/prod secret key>
+# prod'a geçince: npx supabase secrets set IYZICO_BASE_URL=https://api.iyzipay.com
+# (secret set edilmezse sandbox: https://sandbox-api.iyzipay.com varsayılır)
 
 # deploy
 npx supabase functions deploy coach-chat
 npx supabase functions deploy weekly-exam
+npx supabase functions deploy iyzico-pay
+npx supabase functions deploy expire-premium
 ```
 
 ### 4a. Haftalık sınav zamanlaması (her Pazar)
@@ -85,6 +100,25 @@ Elle test: `curl -X POST https://zfhmvlxgrlmripwpawoh.supabase.co/functions/v1/w
 - Deneme girişi ayrı uç değil: istemci `mock_exams`e yazar, sonra koça mesaj atar —
   bağlam toplama son denemeyi zaten görür.
 
+### 4c. iyzico-pay + expire-premium notları
+- iyzico API key/secret **istemciye konmaz** — yalnız `iyzico-pay` function'ın env'inde.
+- Fiyatlar (`PRICES` sabiti, function içinde) sunucuda tanımlı — client hiçbir
+  zaman tutar göndermez, yalnız `product` seçer.
+- Sandbox test kartlarıyla dene: `npx supabase functions invoke iyzico-pay
+  --data '{"product":"hearts_refill","card":{"holderName":"Test User","number":"5528790000000008","expireMonth":"12","expireYear":"30","cvc":"123"}}'`
+  (iyzico'nun yayınladığı başarı senaryosu test kartı — gerçek kart no farklıysa
+  iyzico Dashboard'daki sandbox test kartları listesine bak).
+- İmza hatası (`errorMessage` "Invalid signature" gibi) dönerse: `payment/auth`
+  isteğinde giden `bodyString` ile imza hesaplamasındaki string TAM AYNI
+  olmalı (function bunu tek değişkende tutuyor, elle değiştirmeyin);
+  `x-iyzi-rnd` header'ının `randomKey` ile birebir eşleştiğini doğrulayın.
+- Her ödeme denemesi `payments` tablosuna yazılır (başarılı/başarısız fark
+  etmeksizin) — "ödeme yaptım ama premium açılmadı" tipi destek taleplerinde
+  ilk bakılacak yer burası (`raw_response` iyzico'nun ham cevabını tutar).
+- `expire-premium`, `weekly-exam` ile aynı desende günlük zamanlanır: Dashboard
+  → Edge Functions → expire-premium → Schedules → cron `0 3 * * *`, header
+  `x-cron-secret: <CRON_SECRET>`.
+
 ## 5. finish_quiz sözleşmesi (mobil taraf için)
 ```ts
 const { data } = await supabase.rpc('finish_quiz', {
@@ -95,7 +129,12 @@ const { data } = await supabase.rpc('finish_quiz', {
 // data: { xp_earned, stars, hearts_left, streak_count }
 ```
 Davranış notları:
-- Can yalnız yanlış başına düşer; premium'da düşmez; flashcards can yakmaz.
+- Can artık `finish_quiz` içinde değil, her yanlış cevapta ANINDA `lose_heart()`
+  RPC'siyle düşer (istemci: `checkAnswer` yanlışta çağırır) — quiz mode'una
+  göre (premium dahil herkes aynı 0-5 tavanına tabi); flashcards can yakmaz.
+  `finish_quiz` yalnız güncel can sayısını `hearts_left` olarak raporlar,
+  KENDİSİ DÜŞÜRMEZ. Can KENDİLİĞİNDEN YENİLENMEZ — yalnız `refill_hearts()`
+  (satın alma) ile dolar (BACKEND.md §4.1, karar kesin).
 - `single` VE `weekly` modda doğru çözülen soru yanlış havuzundan temizlenir
   (§4.7: haftalık sınav "bekleyenleri çözme" işini üstlenir).
 - `weekly` modda bu haftanın `weekly_exams` satırı `completed_at` ile kapanır.

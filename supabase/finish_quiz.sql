@@ -6,7 +6,11 @@
 -- Quiz bitişini TEK transaction'da işler:
 --   1. quiz_attempts satırı
 --   2. yanlışlar → mistakes upsert; single/weekly'de doğru çözülen → resolved_at
---   3. can düşme (premium hariç, 0 altına inmez; flashcards can yakmaz)
+--   3. can — BURADA DÜŞÜRÜLMEZ. Can artık her yanlışta ANINDA (quiz bitmeden)
+--      `lose_heart()` RPC'siyle düşüyor (bkz. hearts.sql) — böylece can
+--      biterse quiz tamamlanmadan da kayıp kalıcı olur, "sonra geri geldi"
+--      gibi bir görüntü oluşmaz. finish_quiz yalnız güncel can sayısını
+--      sonuç ekranı için OKUR.
 --   4. XP: doğru × 9 → xp_events
 --   5. topic modunda: topic_progress done + yıldız, sıradaki konu active
 --   6. streak güncelle (gün sınırı Europe/Istanbul)
@@ -69,7 +73,7 @@ begin
   select hearts, is_premium, streak_count, streak_updated_on
     into v_hearts, v_premium, v_streak, v_streak_on
   from profiles where id = v_user
-  for update;
+  for update;  -- can burada değiştirilmiyor ama satır kilidi streak/premium güncellemesi için lazım
 
   if not found then
     raise exception 'profile_not_found';
@@ -122,12 +126,8 @@ begin
     end loop;
   end if;
 
-  -- 3) can düşme — herkes için geçerli (premium artık sınırsız can vermiyor,
-  -- ekstra can parayla satın alınıyor — bkz. hearts.sql refill_hearts); flashcards can yakmaz
-  if p_mode <> 'flashcards' and v_wrong > 0 then
-    v_hearts := greatest(0, v_hearts - v_wrong);
-    update profiles set hearts = v_hearts, hearts_updated_at = now() where id = v_user;
-  end if;
+  -- 3) can — yukarıda okunan v_hearts zaten güncel (lose_heart() anlık düşürüyor),
+  -- burada ayrıca düşürülmez; yalnız sonuç payload'ında raporlanır.
 
   -- 4) XP — doğru başına 9 (§4.3)
   v_xp := v_correct * 9;

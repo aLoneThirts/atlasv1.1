@@ -1,6 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Btn3D } from '@/components/ui/btn-3d';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
 import type { PremiumPlan } from '@/lib/purchases';
 
@@ -13,17 +12,10 @@ const BENEFITS = [
 /**
  * Premium fayda listesi + plan seçimi — hem tam paywall ekranında (premium.tsx)
  * hem reklamsız ekranının altında (reklamsiz.tsx, upsell olarak) kullanılır.
+ * Plan seçimi doğrudan /odeme kart-formu modalını açar (bkz. lib/purchases.ts).
  * Fiyatlar BACKEND.md §1 hedef aralığında (49-69 TL/ay, 199-249 TL/yıl).
  */
-export function PremiumBenefits({
-  onSubscribe,
-  busy,
-  selectedPlan,
-}: {
-  onSubscribe: (plan: PremiumPlan) => void;
-  busy: boolean;
-  selectedPlan: PremiumPlan | null;
-}) {
+export function PremiumBenefits({ onSubscribe }: { onSubscribe: (plan: PremiumPlan) => void }) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Atlas Premium ile</Text>
@@ -37,23 +29,8 @@ export function PremiumBenefits({
       </View>
 
       <View style={styles.plans}>
-        <PlanCard
-          label="Aylık"
-          price="59 TL"
-          sub="/ ay"
-          onPress={() => onSubscribe('monthly')}
-          disabled={busy}
-          busy={busy && selectedPlan === 'monthly'}
-        />
-        <PlanCard
-          label="Yıllık"
-          price="229 TL"
-          sub="/ yıl"
-          badge="En avantajlı"
-          onPress={() => onSubscribe('yearly')}
-          disabled={busy}
-          busy={busy && selectedPlan === 'yearly'}
-        />
+        <PlanCard label="Aylık" price="59 TL" sub="/ ay" onPress={() => onSubscribe('monthly')} />
+        <PlanCard label="Yıllık" price="229 TL" sub="/ yıl" badge="En avantajlı" onPress={() => onSubscribe('yearly')} />
       </View>
     </View>
   );
@@ -65,19 +42,15 @@ function PlanCard({
   sub,
   badge,
   onPress,
-  disabled,
-  busy,
 }: {
   label: string;
   price: string;
   sub: string;
   badge?: string;
   onPress: () => void;
-  disabled: boolean;
-  busy: boolean;
 }) {
   return (
-    <Pressable disabled={disabled} onPress={onPress} style={[styles.planCard, disabled && styles.planCardDisabled]}>
+    <Pressable onPress={onPress} style={styles.planCard}>
       {badge && (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{badge}</Text>
@@ -88,7 +61,7 @@ function PlanCard({
         {price}
         <Text style={styles.planSub}>{sub}</Text>
       </Text>
-      <Text style={styles.planCta}>{busy ? '...' : 'Seç'}</Text>
+      <Text style={styles.planCta}>Seç</Text>
     </Pressable>
   );
 }
@@ -116,7 +89,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
-  planCardDisabled: { opacity: 0.6 },
   badge: {
     position: 'absolute',
     top: -10,

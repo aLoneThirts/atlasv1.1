@@ -1,17 +1,17 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Confetti } from '@/components/ui/animated/confetti';
+import { HeartsEmptyCard } from '@/components/hearts/hearts-empty-card';
 import { MascotPop } from '@/components/ui/animated/mascot-pop';
 import { HeartsRow } from '@/components/ui/hearts-row';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
-import { finishQuiz, fetchProfile, fetchTopicQuestions } from '@/lib/queries';
-import { buyHeartRefill } from '@/lib/purchases';
+import { finishQuiz, fetchProfile, fetchTopicQuestions, loseHeart } from '@/lib/queries';
 import type { FinishQuizResult, Question, QuizAnswer } from '@/lib/types';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
@@ -32,9 +32,7 @@ export default function QuizScreen() {
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [startHearts, setStartHearts] = useState(5);
   const [localHearts, setLocalHearts] = useState(5);
-  const [buyingHearts, setBuyingHearts] = useState(false);
 
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
@@ -55,7 +53,6 @@ export default function QuizScreen() {
           return;
         }
         setQuestions(qs);
-        setStartHearts(profile.hearts);
         setLocalHearts(profile.hearts);
         setPhase('quiz');
       } catch {
@@ -64,21 +61,12 @@ export default function QuizScreen() {
     })();
   }, [topicId]);
 
-  const resetRun = () => {
-    setIndex(0);
-    setSelected(null);
-    setAnswered(false);
-    setCorrectCount(0);
-    setWrongCount(0);
-    setAnswers([]);
-    setLocalHearts(startHearts);
-    setPhase('quiz');
-  };
-
   const question = questions[index];
   const total = questions.length;
 
-  const checkAnswer = () => {
+  // Yanlış cevapta can ANINDA (quiz bitmeden) düşer — sunucudan dönen gerçek
+  // değeri kullanır, kayıp quiz yarıda bırakılsa bile kalıcıdır (BACKEND.md §4.1).
+  const checkAnswer = async () => {
     if (selected === null || answered || !question) return;
     setAnswered(true);
     const good = selected === question.correct_index;
@@ -87,22 +75,26 @@ export default function QuizScreen() {
       setCorrectCount((c) => c + 1);
     } else {
       setWrongCount((w) => w + 1);
-      setLocalHearts((h) => Math.max(0, h - 1));
+      try {
+        const heartsNow = await loseHeart();
+        setLocalHearts(heartsNow);
+      } catch {
+        setLocalHearts((h) => Math.max(0, h - 1));
+      }
     }
   };
 
-  const onContinue = async () => {
-    if (localHearts <= 0) {
-      setPhase('hearts-empty');
-      return;
-    }
+  // Sıradaki soruya geç ya da (son soruysa) quiz'i bitir — hem normal "Devam
+  // Et" akışından hem can-bitti ekranından (can yenilenince/satın alınınca) çağrılır.
+  const advance = async (heartsNow: number) => {
+    setLocalHearts(heartsNow);
+    setPhase('quiz');
     if (index + 1 < total) {
       setIndex((i) => i + 1);
       setSelected(null);
       setAnswered(false);
       return;
     }
-    // son soru — quiz'i bitir
     setSubmitting(true);
     try {
       const r = await finishQuiz('topic', topicId!, answers);
@@ -115,32 +107,18 @@ export default function QuizScreen() {
     }
   };
 
-  const quit = () => router.back();
-
-  const buyHearts = () => {
-    Alert.alert(
-      '🚧 Test modu',
-      'Gerçek ödeme entegrasyonu henüz yok — mağaza hesapları hazır olunca gerçek satın almaya bağlanacak. Şimdilik canını hemen dolduralım mı?',
-      [
-        { text: 'Vazgeç', style: 'cancel' },
-        {
-          text: 'Canı Doldur',
-          onPress: async () => {
-            setBuyingHearts(true);
-            const res = await buyHeartRefill();
-            setBuyingHearts(false);
-            if (res.ok) {
-              setStartHearts(res.hearts);
-              setLocalHearts(res.hearts);
-              setPhase('quiz');
-            } else {
-              Alert.alert('Olmadı', res.error);
-            }
-          },
-        },
-      ],
-    );
+  const onContinue = async () => {
+    if (localHearts <= 0) {
+      setPhase('hearts-empty');
+      // Canın bittiği an direkt satın alma ekranına yönlendir — ekstra bir
+      // buton beklemeden (BACKEND.md §4.1).
+      router.push({ pathname: '/odeme', params: { product: 'hearts_refill' } } as never);
+      return;
+    }
+    await advance(localHearts);
   };
+
+  const quit = () => router.back();
 
   if (phase === 'loading') {
     return (
@@ -163,26 +141,14 @@ export default function QuizScreen() {
 
   if (phase === 'hearts-empty') {
     return (
-      <View style={styles.heartsEmptyBg}>
-        <SafeAreaView style={styles.centerContent}>
-          <Image source={require('@/assets/images/atlas/mascot-sad.png')} style={styles.mascotBig} contentFit="contain" />
-          <Text style={styles.heartsTitle}>Canın Bitti!</Text>
-          <Text style={styles.heartsBody}>
-            Kaleyi savunacak askerin kalmadı.{'\n'}Biraz dinlen, sonra tekrar saldır!
-          </Text>
-          <View style={styles.btnStack}>
-            <Btn3D variant="yellow" onPress={buyHearts} disabled={buyingHearts}>
-              {buyingHearts ? '...' : '❤️ Can Satın Al'}
-            </Btn3D>
-            <Btn3D variant="orange" onPress={() => router.replace({ pathname: '/kale/[subjectId]', params: { subjectId: subjectId! } } as never)}>
-              Kaleye Geri Dön
-            </Btn3D>
-            <Btn3D variant="ghost" onPress={resetRun}>
-              Yeniden Dene
-            </Btn3D>
-          </View>
-        </SafeAreaView>
-      </View>
+      <HeartsEmptyCard
+        title="Canın Bitti!"
+        message={'Kaleyi savunacak askerin kalmadı.\nCan satın alıp devam edebilirsin.'}
+        onHeartsAvailable={(h) => advance(h)}>
+        <Btn3D variant="orange" onPress={() => router.replace({ pathname: '/kale/[subjectId]', params: { subjectId: subjectId! } } as never)}>
+          Kaleye Geri Dön
+        </Btn3D>
+      </HeartsEmptyCard>
     );
   }
 
@@ -367,12 +333,9 @@ const styles = StyleSheet.create({
   fbMascot: { width: 64, height: 64 },
   fbHead: { color: AtlasColors.white, fontFamily: AtlasFonts.heading, fontSize: 18 },
   fbExp: { color: 'rgba(255,255,255,0.75)', fontFamily: AtlasFonts.bodySemi, fontSize: 13, textAlign: 'center', marginBottom: 6 },
-  heartsEmptyBg: { flex: 1, backgroundColor: '#1A0000' },
   resultBg: { flex: 1, backgroundColor: DARK_BG },
   centerContent: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30, gap: 10 },
   mascotBig: { width: 130, height: 130, marginBottom: 6 },
-  heartsTitle: { color: AtlasColors.white, fontFamily: AtlasFonts.heading, fontSize: 26 },
-  heartsBody: { color: 'rgba(255,255,255,0.75)', fontSize: 14, textAlign: 'center', lineHeight: 21, marginBottom: 10 },
   resultTitle: { color: AtlasColors.white, fontFamily: AtlasFonts.heading, fontSize: 26 },
   resultSub: { color: 'rgba(255,255,255,0.7)', fontSize: 14, marginBottom: 8 },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginVertical: 10 },

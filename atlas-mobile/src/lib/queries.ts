@@ -71,6 +71,17 @@ export async function fetchProfile(): Promise<Profile> {
 }
 
 /**
+ * lose_heart() RPC — can ANINDA (quiz bitmeden) düşer (BACKEND.md §4.1).
+ * Her yanlış cevapta çağrılmalı; dönen değer sunucudaki gerçek can sayısıdır
+ * (istemci matematiği değil) — quiz yarıda bırakılsa bile kayıp kalıcıdır.
+ */
+export async function loseHeart(): Promise<number> {
+  const { data, error } = await supabase.rpc('lose_heart');
+  if (error) throw error;
+  return (data as { hearts: number }).hearts;
+}
+
+/**
  * RLS "own profile" zaten çağıranın satırıyla sınırlar, ama supabase-js
  * filtresiz update/delete'i KENDİSİ reddediyor ("UPDATE requires a WHERE
  * clause") — bu yüzden id filtresi RLS için değil, client kütüphanesinin

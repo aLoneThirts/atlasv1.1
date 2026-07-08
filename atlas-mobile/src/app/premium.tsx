@@ -1,39 +1,23 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PremiumBenefits } from '@/components/premium/premium-benefits';
-import { AtlasColors, AtlasFonts, AtlasGradients } from '@/constants/atlas-theme';
-import { buyPremium, type PremiumPlan } from '@/lib/purchases';
+import { AtlasFonts, AtlasGradients } from '@/constants/atlas-theme';
+import type { PremiumPlan } from '@/lib/purchases';
 
 /**
  * EKRAN — Premium paywall. `koc.tsx` / `haftalik.tsx` kilit ekranlarından
- * ve harita'da kilitli kale dokunuşundan buraya yönlendirilir.
+ * ve harita'da kilitli kale dokunuşundan buraya yönlendirilir. Plan seçimi
+ * /odeme kart-formu modalını açar (iyzico, bkz. lib/purchases.ts).
  */
 export default function PremiumScreen() {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [plan, setPlan] = useState<PremiumPlan | null>(null);
 
-  const subscribe = async (p: PremiumPlan) => {
-    if (busy) return;
-    setPlan(p);
-    setBusy(true);
-    try {
-      const res = await buyPremium(p);
-      if (res.ok) {
-        Alert.alert('Hoş geldin, Komutan! 👑', 'Premium aktif — tüm kaleler ve koç artık senin.', [
-          { text: 'Tamam', onPress: () => router.back() },
-        ]);
-      } else {
-        Alert.alert('Olmadı', res.error);
-      }
-    } finally {
-      setBusy(false);
-    }
+  const subscribe = (p: PremiumPlan) => {
+    router.push({ pathname: '/odeme', params: { product: p === 'monthly' ? 'premium_monthly' : 'premium_yearly' } } as never);
   };
 
   return (
@@ -50,10 +34,8 @@ export default function PremiumScreen() {
             style={styles.crest}
             contentFit="contain"
           />
-          <Text style={styles.testNote}>
-            🚧 Test modu — mağaza hesapları hazır olunca gerçek ödemeye bağlanacak, şimdilik seçince direkt aktif olur.
-          </Text>
-          <PremiumBenefits onSubscribe={subscribe} busy={busy} selectedPlan={plan} />
+          <Text style={styles.trust}>🔒 Ödemeler iyzico güvencesiyle işlenir</Text>
+          <PremiumBenefits onSubscribe={subscribe} />
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -67,7 +49,7 @@ const styles = StyleSheet.create({
   back: { color: '#5B4400', fontSize: 15, fontFamily: AtlasFonts.bodyBold },
   scroll: { paddingHorizontal: 24, paddingBottom: 40, alignItems: 'center', gap: 16 },
   crest: { width: 96, height: 96 },
-  testNote: {
+  trust: {
     color: 'rgba(0,0,0,0.55)',
     fontSize: 11.5,
     fontFamily: AtlasFonts.bodySemi,
