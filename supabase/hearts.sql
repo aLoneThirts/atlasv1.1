@@ -57,7 +57,10 @@ as $$
       else p_updated_at + (periods * interval '8 hours')
     end as updated_at
   from (
-    select floor(extract(epoch from (now() - p_updated_at)) / (8 * 3600))::int as periods
+    -- greatest(0, ...): hearts_updated_at ileride bir yanlışlıkla şimdiden
+    -- sonraki bir zamana yazılırsa (olmamalı ama savunma amaçlı) periods
+    -- negatif çıkıp canı haksız yere düşürmesin
+    select greatest(0, floor(extract(epoch from (now() - p_updated_at)) / (8 * 3600)))::int as periods
   ) s;
 $$;
 
