@@ -10,8 +10,7 @@ const BENEFITS = [
 ];
 
 /**
- * Premium fayda listesi + plan seçimi — hem tam paywall ekranında (premium.tsx)
- * hem reklamsız ekranının altında (reklamsiz.tsx, upsell olarak) kullanılır.
+ * Premium fayda listesi + plan seçimi — tam paywall ekranında (premium.tsx) kullanılır.
  * Plan seçimi doğrudan /odeme kart-formu modalını açar (bkz. lib/purchases.ts).
  * Fiyatlar BACKEND.md §1 hedef aralığında (49-69 TL/ay, 199-249 TL/yıl).
  */

@@ -5,8 +5,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
+import { DateField } from '@/components/ui/date-field';
 import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
-import { fetchProfile, setExamTrack, updateProfile } from '@/lib/queries';
+import { refreshExamCountdownNotification } from '@/lib/exam-countdown-notification';
+import { deleteAccount, fetchProfile, setExamTrack, updateProfile } from '@/lib/queries';
+import { supabase } from '@/lib/supabase';
 import { useThemeMode } from '@/lib/theme-context';
 import type { ExamTrack } from '@/lib/types';
 
@@ -23,6 +26,7 @@ export default function AyarlarScreen() {
 
   const [university, setUniversity] = useState('');
   const [department, setDepartment] = useState('');
+  const [examDate, setExamDate] = useState<string | null>(null);
   const [examTrack, setExamTrackState] = useState<ExamTrack>('tyt');
   const [examTrackBusy, setExamTrackBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -31,12 +35,16 @@ export default function AyarlarScreen() {
   const [saved, setSaved] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [adsRemoved, setAdsRemoved] = useState(false);
+  const [deleteConfirming, setDeleteConfirming] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProfile()
       .then((p) => {
         setUniversity(p.target_university ?? '');
         setDepartment(p.target_department ?? '');
+        setExamDate(p.exam_date);
         setExamTrackState(p.exam_track);
         setIsPremium(p.is_premium);
         setAdsRemoved(p.ads_removed);
@@ -57,6 +65,31 @@ export default function AyarlarScreen() {
       setError('Sınav kapsamı kaydedilemedi — internetini kontrol edip tekrar dene.');
     } finally {
       setExamTrackBusy(false);
+    }
+  };
+
+  const onPickExamDate = async (iso: string) => {
+    const previous = examDate;
+    setExamDate(iso);
+    try {
+      await updateProfile({ exam_date: iso });
+      refreshExamCountdownNotification(iso);
+    } catch {
+      setExamDate(previous);
+      setError('Sınav tarihi kaydedilemedi — internetini kontrol edip tekrar dene.');
+    }
+  };
+
+  const onDeleteAccount = async () => {
+    if (deleteBusy) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      await deleteAccount();
+      await supabase.auth.signOut();
+    } catch {
+      setDeleteError('Hesap silinemedi — internetini kontrol edip tekrar dene.');
+      setDeleteBusy(false);
     }
   };
 
@@ -101,13 +134,7 @@ export default function AyarlarScreen() {
                     👑 Premium&apos;a Geç
                   </Btn3D>
                 )}
-                {!isPremium && (adsRemoved ? (
-                  <Text style={styles.premiumActive}>🚫📺 Reklamsız aktif</Text>
-                ) : (
-                  <Btn3D variant="purple" onPress={() => router.push('/reklamsiz')}>
-                    Reklamsız Deneyim
-                  </Btn3D>
-                ))}
+                {!isPremium && adsRemoved && <Text style={styles.premiumActive}>🚫📺 Reklamsız aktif</Text>}
               </View>
             )}
           </Card>
@@ -134,6 +161,16 @@ export default function AyarlarScreen() {
                   </Pressable>
                 ))}
               </View>
+            )}
+          </Card>
+
+          <Card style={styles.card}>
+            <Text style={[styles.sectionTitle, { color: surface.text }]}>Sınav Tarihi</Text>
+            <Text style={[styles.sectionSub, { color: surface.textSecondary }]}>
+              Koç ekranında geri sayım olarak gösterilir.
+            </Text>
+            {!loading && (
+              <DateField value={examDate} onChange={onPickExamDate} minimumDate={new Date()} placeholder="Sınav tarihini seç" />
             )}
           </Card>
 
@@ -167,6 +204,37 @@ export default function AyarlarScreen() {
                 <Btn3D onPress={save} disabled={busy}>
                   {busy ? '...' : 'Kaydet'}
                 </Btn3D>
+              </View>
+            )}
+          </Card>
+
+          <Card style={styles.card}>
+            <Pressable onPress={() => router.push('/hukuki')} hitSlop={8}>
+              <Text style={[styles.sectionTitle, { color: surface.text }]}>Gizlilik ve Kullanım Şartları</Text>
+            </Pressable>
+          </Card>
+
+          <Card style={styles.card}>
+            <Text style={[styles.sectionTitle, { color: AtlasColors.redDark }]}>Tehlikeli Bölge</Text>
+            <Text style={[styles.sectionSub, { color: surface.textSecondary }]}>
+              Hesabını sildiğinde tüm ilerlemen, canların, seri ve satın alımların kalıcı olarak silinir. Bu işlem geri alınamaz.
+            </Text>
+            {deleteError && <Text style={styles.error}>{deleteError}</Text>}
+            {!deleteConfirming ? (
+              <Pressable onPress={() => setDeleteConfirming(true)} hitSlop={8}>
+                <Text style={styles.dangerLink}>Hesabı Sil</Text>
+              </Pressable>
+            ) : (
+              <View style={styles.form}>
+                <Text style={[styles.sectionSub, { color: surface.text }]}>
+                  Emin misin? Bu işlem geri alınamaz.
+                </Text>
+                <Btn3D variant="red" onPress={onDeleteAccount} disabled={deleteBusy}>
+                  {deleteBusy ? 'Siliniyor...' : 'Evet, Kalıcı Olarak Sil'}
+                </Btn3D>
+                <Pressable onPress={() => setDeleteConfirming(false)} disabled={deleteBusy} hitSlop={8}>
+                  <Text style={[styles.sectionSub, { color: surface.textSecondary, textAlign: 'center' }]}>Vazgeç</Text>
+                </Pressable>
               </View>
             )}
           </Card>
@@ -210,6 +278,12 @@ const styles = StyleSheet.create({
   savedText: {
     color: AtlasColors.greenDark,
     fontSize: 13,
+    fontFamily: AtlasFonts.bodyBold,
+    textAlign: 'center',
+  },
+  dangerLink: {
+    color: AtlasColors.redDark,
+    fontSize: 14,
     fontFamily: AtlasFonts.bodyBold,
     textAlign: 'center',
   },

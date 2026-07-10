@@ -119,6 +119,19 @@ export async function setExamTrack(track: Profile['exam_track']): Promise<void> 
   if (error) throw error;
 }
 
+/**
+ * delete-account Edge Function — auth.users satırını admin API ile siler;
+ * profiles + tüm bağlı kullanıcı verisi FK cascade ile otomatik gider
+ * (App Store Guideline 5.1.1(v) / KVKK unutulma hakkı, bkz. Ayarlar ekranı).
+ * Başarılı dönerse çağıran taraf ayrıca signOut çağırmalı (oturum token'ı
+ * artık geçersiz bir kullanıcıya ait olsa da istemci state'i temizlenmeli).
+ */
+export async function deleteAccount(): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+  if (error) throw error;
+  if (!(data as { ok: boolean })?.ok) throw new Error('delete_failed');
+}
+
 /* ------------------------------------------------------------
    ÖSYM puan hesaplama (görev listesi madde 10/11)
 ------------------------------------------------------------ */
@@ -398,11 +411,14 @@ export async function fetchTopicQuestions(topicId: string, limit = 5): Promise<Q
 }
 
 type JoinedQuestionRow = Question & {
-  topics: { title: string; units: { subjects: { id: string; name: string; color: string } } };
+  topics: {
+    title: string;
+    units: { subjects: { id: string; name: string; color: string; exam_type: 'tyt' | 'ayt' } };
+  };
 };
 
 const QUESTION_JOIN =
-  'id, topic_id, prompt, options, correct_index, explanation, topics!inner(title, units!inner(subjects!inner(id, name, color)))';
+  'id, topic_id, prompt, options, correct_index, explanation, topics!inner(title, units!inner(subjects!inner(id, name, color, exam_type)))';
 
 /** id listesiyle soru çek (haftalık sınav) — ders rozeti için subject join'li */
 export async function fetchQuestionsByIds(ids: string[]): Promise<Question[]> {
@@ -482,6 +498,7 @@ export async function fetchOpenMistakes(): Promise<MistakeItem[]> {
     subjectId: m.questions.topics.units.subjects.id,
     subjectName: m.questions.topics.units.subjects.name,
     subjectColor: m.questions.topics.units.subjects.color,
+    subjectExamType: m.questions.topics.units.subjects.exam_type,
     topicTitle: m.questions.topics.title,
   }));
 }

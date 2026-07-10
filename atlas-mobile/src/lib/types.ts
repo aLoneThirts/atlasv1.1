@@ -23,6 +23,7 @@ export type Profile = {
   expo_push_token: string | null;
   onboarding_completed: boolean;
   ads_removed: boolean;
+  terms_accepted_at: string | null;
   created_at: string;
 };
 
@@ -94,6 +95,7 @@ export type MistakeItem = {
   subjectId: string;
   subjectName: string;
   subjectColor: string;
+  subjectExamType: 'tyt' | 'ayt';
   topicTitle: string;
 };
 

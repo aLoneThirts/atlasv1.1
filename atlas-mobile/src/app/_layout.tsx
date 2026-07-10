@@ -3,17 +3,44 @@ import { Nunito_800ExtraBold, Nunito_900Black } from '@expo-google-fonts/nunito'
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
+import { useEffect } from 'react';
+import { AppState, useColorScheme } from 'react-native';
 
 import '@/global.css';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
+import { refreshExamCountdownNotification } from '@/lib/exam-countdown-notification';
+import { registerForPushNotifications } from '@/lib/push-notifications';
+import { fetchProfile } from '@/lib/queries';
 import { ThemeModeProvider } from '@/lib/theme-context';
 
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
   const { session, initializing, onboardingCompleted } = useAuth();
+  const inApp = !!session && onboardingCompleted === true;
+
+  useEffect(() => {
+    if (!inApp) return;
+
+    // Push token kaydı + sınav geri sayım bildirimi: uygulama açılışında VE her
+    // ön plana dönüşte tazelenir (geri sayım bildiriği tekrarlayan değil, tek
+    // seferlik — tazeliği en az günde bir açılışa bağlı, bkz. exam-countdown-notification.ts)
+    const refresh = async () => {
+      registerForPushNotifications();
+      try {
+        const profile = await fetchProfile();
+        refreshExamCountdownNotification(profile.exam_date);
+      } catch {
+        /* sessizce geç — bir sonraki ön plana dönüşte tekrar denenir */
+      }
+    };
+    refresh();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refresh();
+    });
+    return () => sub.remove();
+  }, [inApp]);
 
   // İlk oturum okuması bitene kadar, oturum varsa da profilin onboarding
   // durumu gelene kadar native splash ekranda kalır (yanlış ekrana sıçramasın)
@@ -28,7 +55,6 @@ function RootNavigator() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="ayarlar" />
           <Stack.Screen name="premium" />
-          <Stack.Screen name="reklamsiz" />
           <Stack.Screen name="tercih" />
           <Stack.Screen name="odeme" options={{ presentation: 'modal' }} />
         </Stack.Protected>
@@ -39,6 +65,7 @@ function RootNavigator() {
           <Stack.Screen name="giris" />
         </Stack.Protected>
         <Stack.Screen name="auth-callback" />
+        <Stack.Screen name="hukuki" options={{ presentation: 'modal' }} />
       </Stack>
     </>
   );

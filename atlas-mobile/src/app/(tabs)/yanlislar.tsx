@@ -8,8 +8,10 @@ import { Card } from '@/components/ui/card';
 import { Pill } from '@/components/ui/pill';
 import { GlowBanner } from '@/components/ui/animated/glow-banner';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
-import { fetchOpenMistakes } from '@/lib/queries';
+import { fetchOpenMistakes, fetchProfile } from '@/lib/queries';
 import type { MistakeItem } from '@/lib/types';
+
+type ExamType = 'tyt' | 'ayt';
 
 /**
  * EKRAN 09 — Yanlışlarım
@@ -36,12 +38,15 @@ export default function MistakesScreen() {
   const [filter, setFilter] = useState<string>(ALL);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [examType, setExamType] = useState<ExamType>('tyt');
+  const [showAytToggle, setShowAytToggle] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setError(null);
-      const data = await fetchOpenMistakes();
+      const [data, profile] = await Promise.all([fetchOpenMistakes(), fetchProfile()]);
       setMistakes(data);
+      setShowAytToggle(profile.exam_track === 'tyt_ayt_ea');
     } catch {
       setError('Yüklenemedi — internetini kontrol et.');
     }
@@ -59,14 +64,26 @@ export default function MistakesScreen() {
     setRefreshing(false);
   };
 
-  // Fetch sonuçlarından benzersiz ders adları (renkleriyle) türet
+  // Seçili sınav (TYT/AYT) türüne ait yanlışlar — toggle görünmüyorsa (tek TYT'liler) hep TYT
+  const trackMistakes = useMemo(
+    () => mistakes.filter((m) => m.subjectExamType === examType),
+    [mistakes, examType],
+  );
+
+  // Fetch sonuçlarından benzersiz ders adları (renkleriyle) türet — yalnız seçili sınav türünden
   const subjects = useMemo(() => {
     const map = new Map<string, string>();
-    for (const m of mistakes) if (!map.has(m.subjectName)) map.set(m.subjectName, m.subjectColor);
+    for (const m of trackMistakes) if (!map.has(m.subjectName)) map.set(m.subjectName, m.subjectColor);
     return Array.from(map, ([name, color]) => ({ name, color }));
-  }, [mistakes]);
+  }, [trackMistakes]);
 
-  const filtered = filter === ALL ? mistakes : mistakes.filter((m) => m.subjectName === filter);
+  const filtered = filter === ALL ? trackMistakes : trackMistakes.filter((m) => m.subjectName === filter);
+
+  const onPickExamType = (t: ExamType) => {
+    if (t === examType) return;
+    setExamType(t);
+    setFilter(ALL);
+  };
 
   return (
     <View style={styles.container}>
@@ -77,9 +94,24 @@ export default function MistakesScreen() {
           <View style={styles.header}>
             <Text style={styles.title}>⚠️ Yanlışlarım</Text>
             <Pill color={AtlasColors.redLight} textColor={AtlasColors.redDark}>
-              {`${mistakes.length} soru`}
+              {`${trackMistakes.length} soru`}
             </Pill>
           </View>
+
+          {showAytToggle && (
+            <View style={styles.trackToggle}>
+              {(['tyt', 'ayt'] as const).map((t) => (
+                <Pressable
+                  key={t}
+                  onPress={() => onPickExamType(t)}
+                  style={[styles.trackPill, examType === t && styles.trackPillActive]}>
+                  <Text style={[styles.trackPillText, examType === t && styles.trackPillTextActive]}>
+                    {t.toUpperCase()}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
 
           {error && <Text style={styles.error}>{error}</Text>}
 
@@ -98,7 +130,7 @@ export default function MistakesScreen() {
             </GlowBanner>
           </Pressable>
 
-          {mistakes.length === 0 ? (
+          {trackMistakes.length === 0 ? (
             <View style={styles.emptyBox}>
               <Text style={styles.emptyEmoji}>✅</Text>
               <Text style={styles.emptyTitle}>Hiç yanlışın yok!</Text>
@@ -201,6 +233,18 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 30, gap: 12 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
   title: { color: AtlasColors.inkStrong, fontSize: 22, fontFamily: AtlasFonts.heading },
+  trackToggle: { flexDirection: 'row', gap: 8 },
+  trackPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: AtlasRadius.pill,
+    borderWidth: 2,
+    borderColor: AtlasColors.line,
+    backgroundColor: AtlasColors.white,
+  },
+  trackPillActive: { backgroundColor: AtlasColors.inkStrong, borderColor: AtlasColors.inkStrong },
+  trackPillText: { fontSize: 12, fontFamily: AtlasFonts.heading, color: AtlasColors.ink },
+  trackPillTextActive: { color: AtlasColors.white },
   error: {
     color: AtlasColors.redDark,
     backgroundColor: AtlasColors.redLight,

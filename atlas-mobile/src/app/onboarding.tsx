@@ -1,11 +1,14 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
+import { DateField } from '@/components/ui/date-field';
 import { AtlasColors, AtlasGradients, AtlasRadius } from '@/constants/atlas-theme';
 import { useAuth } from '@/lib/auth-context';
+import { refreshExamCountdownNotification } from '@/lib/exam-countdown-notification';
 import { fetchProfile, setExamTrack, updateProfile } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import type { ExamTrack } from '@/lib/types';
@@ -33,8 +36,10 @@ const EXAM_TRACK_OPTIONS: { value: ExamTrack; emoji: string; title: string; subt
  * değişiklikler yine kaydedilir.
  */
 export default function OnboardingScreen() {
+  const router = useRouter();
   const { refreshOnboarding } = useAuth();
   const [loaded, setLoaded] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [username, setUsername] = useState('');
   const [originalUsername, setOriginalUsername] = useState('');
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
@@ -42,6 +47,7 @@ export default function OnboardingScreen() {
   const [lastName, setLastName] = useState('');
   const [university, setUniversity] = useState('');
   const [department, setDepartment] = useState('');
+  const [examDate, setExamDate] = useState<string | null>(null);
   const [examTrack, setExamTrackLocal] = useState<ExamTrack>('tyt');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +62,7 @@ export default function OnboardingScreen() {
         setLastName(p.last_name ?? '');
         setUniversity(p.target_university ?? '');
         setDepartment(p.target_department ?? '');
+        setExamDate(p.exam_date);
         setExamTrackLocal(p.exam_track);
       })
       .finally(() => setLoaded(true));
@@ -106,6 +113,10 @@ export default function OnboardingScreen() {
       setError('Bu kullanıcı adı alınmış — başka bir tane dene.');
       return;
     }
+    if (!termsAccepted) {
+      setError('Devam etmek için Kullanım Şartları ve Gizlilik Politikası\'nı onaylaman gerekiyor.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -116,8 +127,11 @@ export default function OnboardingScreen() {
         last_name: lastName.trim() || null,
         target_university: withValues ? university.trim() || null : null,
         target_department: withValues ? department.trim() || null : null,
+        exam_date: withValues ? examDate : null,
         onboarding_completed: true,
+        terms_accepted_at: new Date().toISOString(),
       });
+      if (withValues) refreshExamCountdownNotification(examDate);
       await refreshOnboarding();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -199,6 +213,15 @@ export default function OnboardingScreen() {
                 ))}
               </View>
 
+              <Text style={styles.trackLabel}>Sınav tarihin (biliyorsan)</Text>
+              <DateField
+                value={examDate}
+                onChange={setExamDate}
+                minimumDate={new Date()}
+                placeholder="Sınav tarihini seç"
+                dark
+              />
+
               <TextInput
                 style={styles.input}
                 placeholder="Hedef Üniversite (ör. Boğaziçi)"
@@ -215,13 +238,31 @@ export default function OnboardingScreen() {
                 onSubmitEditing={() => finish(true)}
               />
 
+              <Pressable
+                style={styles.termsRow}
+                onPress={() => setTermsAccepted((v) => !v)}
+                hitSlop={6}>
+                <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+                  {termsAccepted && <Text style={styles.checkboxMark}>✓</Text>}
+                </View>
+                <Text style={styles.termsText}>
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() => router.push('/hukuki')}>
+                    Kullanım Şartları ve Gizlilik Politikası
+                  </Text>
+                  &apos;nı okudum, kabul ediyorum. 18 yaşından küçüksem velimin bilgisi
+                  dahilinde kullanıyorum.
+                </Text>
+              </Pressable>
+
               {error && <Text style={styles.error}>{error}</Text>}
 
-              <Btn3D onPress={() => finish(true)} disabled={busy || !loaded}>
+              <Btn3D onPress={() => finish(true)} disabled={busy || !loaded || !termsAccepted}>
                 {busy ? '...' : 'Kaydet ve Devam Et'}
               </Btn3D>
 
-              <Pressable onPress={() => finish(false)} disabled={busy || !loaded} hitSlop={10}>
+              <Pressable onPress={() => finish(false)} disabled={busy || !loaded || !termsAccepted} hitSlop={10}>
                 <Text style={styles.skip}>Hedef Okul/Bölümü Şimdilik Atla</Text>
               </Pressable>
             </View>
@@ -300,6 +341,42 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginTop: 6,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: AtlasColors.greenLight,
+    borderColor: AtlasColors.greenLight,
+  },
+  checkboxMark: {
+    color: AtlasColors.inkStrong,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  termsText: {
+    flex: 1,
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 12.5,
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: AtlasColors.blue,
+    fontWeight: '800',
+    textDecorationLine: 'underline',
   },
   skip: {
     color: 'rgba(255,255,255,0.7)',

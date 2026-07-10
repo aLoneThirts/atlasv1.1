@@ -252,6 +252,21 @@ içeriği **prototipte hazır**: `index.html` içinde `TOPIC_QS` (5 soru),
 (4 örnek). Bunları SQL insert'e çevir (küçük script yeterli). Sonrası içerik
 ekibi/editör işi.
 
+**2026-07-10 güncelleme — kalan derslere TASLAK içerik eklendi:**
+- `supabase/seed_tyt_extra.sql` — Coğrafya/Felsefe'nin minimal seed'ine ek
+  konular + tüm TYT dersleri için flashcard; Fizik/Kimya/Biyoloji/Türkçe
+  sıfırdan (her biri 1 ünite/3 konu/5 soru+flashcard).
+- `supabase/ayt-subjects.sql` — `tarih_ayt`/`cografya_ayt`/`felsefe_ayt`
+  ders kayıtları (AYT v1'e girdi, §9 madde 4).
+- `supabase/seed_ayt.sql` — Edebiyat + 3 yeni AYT dersi için taslak içerik
+  (`ayt-subjects.sql`'den SONRA çalıştırılmalı).
+
+⚠️ Bu içerik **taslaktır**, pedagojik/alan uzmanı doğruluk kontrolünden
+geçmedi — yalnızca uygulamayı oynanabilir hale getirmek için yazıldı. Yayına
+almadan önce bir öğretmen/içerik uzmanının gözden geçirmesi ŞART. Yine de
+her sorunun `correct_index`'i seçeneklerle karşılaştırılarak doğrulandı ve
+yalnız kesin/tartışmasız temel müfredat bilgisi kullanıldı.
+
 ### 6.6 Can yenileme — TAMAMLANDI (son karar)
 "8 saatte 1 can" (§4.1) uygulandı: `supabase/hearts.sql` içinde
 `calc_regen_hearts()` (saf hesap) + `get_hearts()` (RPC, kalıcı yazar +
@@ -291,12 +306,13 @@ eklendi (aynı gün) — geri sayım UI'ı olmadan sadece sessiz regen istenmedi
 
 ## 9. Açık Kararlar (Göktuğ'la netleştirilecek)
 
-1. ~~Can zamanla yenilensin mi?~~ → **EVET, 8 saatte 1 + görünür geri sayım — karar kesin** (§4.1, §6.6). Açık kalan: "reklam izle can kazan" olacak mı?
+1. ~~Can zamanla yenilensin mi?~~ → **EVET, 8 saatte 1 + görünür geri sayım — karar kesin** (§4.1, §6.6). "Reklam izle can kazan" maddesi 7 numaralı karara bağlı olarak KAPANDI — v1'de reklam altyapısı yok, bu yüzden reklamla can kazanma da yok.
 2. ~~Abonelik altyapısı: RevenueCat mi, StoreKit2/Play Billing doğrudan mı?~~ → **iyzico'ya karar verildi** (§4.9, §7).
-3. Streak dondurma (Duolingo "streak freeze") olacak mı?
-4. AYT içeriğinin v1'e girip girmeyeceği (şu an sadece harita toggle'ı var).
-5. Koç günlük proaktif bildirimleri (Flash Lite) v1'de mi v2'de mi?
-6. KVKK/veli onayı akışı (hedef kitle 16-19 yaş — kayıt yaşı kontrolü).
+3. ~~Streak dondurma (Duolingo "streak freeze") olacak mı?~~ → **HAYIR, v1'de yok** (2026-07-10 karar). Basit tutuluyor: gün atlanırsa seri sıfırlanır. v2'de tekrar değerlendirilebilir.
+4. ~~AYT içeriğinin v1'e girip girmeyeceği~~ → **EVET, v1'de var** (2026-07-10 karar). `subjects` tablosuna `tarih_ayt`/`cografya_ayt`/`felsefe_ayt` eklendi (bkz. `supabase/ayt-subjects.sql`, `edebiyat` zaten vardı); harita ekranına TYT/AYT geçiş sekmesi eklendi (yalnız `exam_track='tyt_ayt_ea'` kullanıcılarında görünür, bkz. `components/map/map-screen.tsx`). Taslak içerik: `supabase/seed_ayt.sql`.
+5. Koç günlük proaktif bildirimleri (Flash Lite) v1'de mi v2'de mi? → Henüz açık; push altyapısı (token kaydı) v1'de kuruldu ama proaktif/zamanlı bildirim mantığı yazılmadı — varsayılan olarak v2'ye bırakılıyor, aksini söylersen v1'e alınır.
+6. ~~KVKK/veli onayı akışı~~ → **v1'de var** (2026-07-10). Onboarding'de zorunlu onay checkbox'ı + `hukuki.tsx` (Gizlilik Politikası/Kullanım Şartları, taslak metin — hukuki incelemeden GEÇMEDİ, yayından önce avukata/danışmana onaylatılmalı) + `profiles.terms_accepted_at` (bkz. `supabase/legal-consent.sql`).
+7. ~~"Reklamsız" özelliği v1'de kalsın mı?~~ → **HAYIR, v1'den çıkarıldı** (2026-07-10 karar). Gerekçe: hiçbir reklam SDK'sı kurulu değildi, olmayan bir şey satılıyordu; gerçek AdMob entegrasyonu Expo Go'yu tamamen terk edip dev client/EAS build + bir AdMob hesabı gerektiriyor. `reklamsiz.tsx` silindi, `ayarlar.tsx`'teki satın alma girişi kaldırıldı. Backend tarafında `ads_removed` alanı/ürünü (iyzico-pay, payments.sql) DOKUNULMADAN bırakıldı — ileride gerçek reklam eklenirse UI'ı geri takmak yeterli olur.
 
 ## 10. Hızlı Başlangıç (backend geliştirici)
 

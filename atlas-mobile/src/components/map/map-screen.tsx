@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -15,22 +15,32 @@ import { MapDecorations } from './map-decorations';
 import { MAP_REF_HEIGHT, MAP_REF_WIDTH } from './map-layout';
 import { MapRoads } from './map-roads';
 
-/** Fetih Haritası — Ana Sayfa/prototip: ../../../../index.html #scr-map */
+type ExamType = 'tyt' | 'ayt';
+
+/**
+ * Fetih Haritası — Ana Sayfa/prototip: ../../../../index.html #scr-map
+ * Kullanıcı exam_track='tyt_ayt_ea' seçtiyse üstte TYT/AYT geçiş sekmesi
+ * çıkar (BACKEND.md §9 madde 4 — AYT v1'e girdi); tek TYT'liler için
+ * geçmişteki davranış aynen korunur, sekme hiç görünmez.
+ */
 export function MapScreen() {
   const { width: deviceWidth } = useWindowDimensions();
   const [castles, setCastles] = useState<CastleViewModel[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [examType, setExamType] = useState<ExamType>('tyt');
+  const [showAytToggle, setShowAytToggle] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setError(null);
       const [summaries, profile] = await Promise.all([fetchSubjectSummaries(), fetchProfile()]);
-      const tyt = summaries.filter((s) => s.exam_type === 'tyt').sort((a, b) => a.sort_order - b.sort_order);
-      setCastles(computeCastleViewModels(tyt, profile.is_premium));
+      setShowAytToggle(profile.exam_track === 'tyt_ayt_ea');
+      const filtered = summaries.filter((s) => s.exam_type === examType).sort((a, b) => a.sort_order - b.sort_order);
+      setCastles(computeCastleViewModels(filtered, profile.is_premium));
     } catch {
       setError('Harita yüklenemedi — internetini kontrol et.');
     }
-  }, []);
+  }, [examType]);
 
   useFocusEffect(
     useCallback(() => {
@@ -51,6 +61,20 @@ export function MapScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.head}>
           <Text style={styles.headTitle}>🗺️ Fetih Haritası</Text>
+          {showAytToggle && (
+            <View style={styles.trackToggle}>
+              {(['tyt', 'ayt'] as const).map((t) => (
+                <Pressable
+                  key={t}
+                  onPress={() => setExamType(t)}
+                  style={[styles.trackPill, examType === t && styles.trackPillActive]}>
+                  <Text style={[styles.trackPillText, examType === t && styles.trackPillTextActive]}>
+                    {t.toUpperCase()}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
@@ -71,6 +95,7 @@ export function MapScreen() {
                   doneCount={doneCount}
                   totalCount={castles.length}
                   litSubjects={castles.map((c) => c.state === 'done')}
+                  label={examType === 'ayt' ? 'AYT Ana Kalesi' : 'TYT Ana Kalesi'}
                 />
               )}
             </View>
@@ -94,8 +119,20 @@ export function MapScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safe: { flex: 1 },
-  head: { paddingHorizontal: 18, paddingVertical: 10 },
+  head: { paddingHorizontal: 18, paddingVertical: 10, gap: 8 },
   headTitle: { fontSize: 18, fontFamily: AtlasFonts.heading, color: AtlasColors.white },
+  trackToggle: { flexDirection: 'row', gap: 8 },
+  trackPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  trackPillActive: { backgroundColor: AtlasColors.yellow, borderColor: AtlasColors.yellow },
+  trackPillText: { fontSize: 11.5, fontFamily: AtlasFonts.heading, color: 'rgba(255,255,255,0.75)' },
+  trackPillTextActive: { color: AtlasColors.inkStrong },
   error: {
     marginHorizontal: 18,
     color: AtlasColors.white,

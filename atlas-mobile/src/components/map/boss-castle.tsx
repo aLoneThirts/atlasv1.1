@@ -28,12 +28,14 @@ export function BossCastle({
   totalCount,
   litSubjects,
   scale,
+  label = 'TYT Ana Kalesi',
 }: {
   overallFrac: number;
   doneCount: number;
   totalCount: number;
   litSubjects: boolean[];
   scale: number;
+  label?: string;
 }) {
   const baseScale = useSharedValue(0.78 + 0.45 * overallFrac);
   const breatheScale = useSharedValue(1);
@@ -127,7 +129,7 @@ export function BossCastle({
         ))}
       </View>
 
-      <Text style={styles.label}>TYT Ana Kalesi</Text>
+      <Text style={styles.label}>{label}</Text>
       <Text style={styles.stat}>
         {doneCount}/{totalCount} Kale Güçlendirildi
       </Text>
