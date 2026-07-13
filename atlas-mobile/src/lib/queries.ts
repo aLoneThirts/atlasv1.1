@@ -84,7 +84,7 @@ export async function loseHeart(): Promise<number> {
 export type HeartsState = { hearts: number; hearts_updated_at: string; next_heart_at: string | null };
 
 /**
- * get_hearts() RPC — 8 saatte 1 can yenilemesini (BACKEND.md §4.1) hesaplayıp
+ * get_hearts() RPC — 1 saatte 1 can yenilemesini (BACKEND.md §4.1) hesaplayıp
  * kalıcı yazar, güncel değeri + bir sonraki can zamanını döner. Kale/quiz
  * ekranları açılırken çağrılmalı (UI'da geri sayım göstermek için).
  */

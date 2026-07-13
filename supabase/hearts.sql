@@ -9,9 +9,10 @@
 -- KARAR GEÇMİŞİ (kafa karışıklığını önlemek için): 8 saatte 1 can zamanla
 -- yenileme önce eklendi, sonra "olmasın" denilip tamamen kaldırıldı, sonra
 -- TEKRAR istendi (2026-07-08, aynı gün) — bu kez kullanıcı arayüzünde
--- görünür bir geri sayımla birlikte. Şu anki NİHAİ davranış:
+-- görünür bir geri sayımla birlikte. 2026-07-13'te hız 8 saatte 1'den
+-- 1 saatte 1'e değiştirildi (Göktuğ kararı). Şu anki NİHAİ davranış:
 --   - Can maks. 5, herkes için aynı (premium dahil).
---   - Zamanla yenileme: 8 saatte 1 can (calc_regen_hearts/get_hearts).
+--   - Zamanla yenileme: 1 saatte 1 can (calc_regen_hearts/get_hearts).
 --   - Yanlış cevapta can ANINDA düşer (lose_heart) — quiz bitmesini beklemez.
 --   - Ekstra can iyzico ile satın alınca anlık 5/5 doldurur (refill_hearts).
 -- ============================================================
@@ -37,7 +38,7 @@ grant execute on function public.refill_hearts() to authenticated;
 
 -- ============================================================
 -- calc_regen_hearts: saf hesap fonksiyonu, tabloya dokunmaz. Geçen süreden
--- kaç tam 8 saatlik periyot geçtiyse o kadar can ekler (5'te tavanlar).
+-- kaç tam 1 saatlik periyot geçtiyse o kadar can ekler (5'te tavanlar).
 -- Tavana ulaşılmadıysa updated_at, TÜKETİLEN periyot kadar ileri alınır
 -- (kalan kısmi ilerleme kaybolmaz). Tavana ulaşıldıysa updated_at = now()
 -- (bir sonraki düşüşün geri sayımı buradan başlasın).
@@ -54,13 +55,13 @@ as $$
     least(5, p_hearts + periods)::int as hearts,
     case
       when p_hearts + periods >= 5 then now()
-      else p_updated_at + (periods * interval '8 hours')
+      else p_updated_at + (periods * interval '1 hour')
     end as updated_at
   from (
     -- greatest(0, ...): hearts_updated_at ileride bir yanlışlıkla şimdiden
     -- sonraki bir zamana yazılırsa (olmamalı ama savunma amaçlı) periods
     -- negatif çıkıp canı haksız yere düşürmesin
-    select greatest(0, floor(extract(epoch from (now() - p_updated_at)) / (8 * 3600)))::int as periods
+    select greatest(0, floor(extract(epoch from (now() - p_updated_at)) / 3600))::int as periods
   ) s;
 $$;
 
@@ -101,7 +102,7 @@ begin
   return jsonb_build_object(
     'hearts', v_new_hearts,
     'hearts_updated_at', v_new_updated,
-    'next_heart_at', case when v_new_hearts < 5 then v_new_updated + interval '8 hours' else null end
+    'next_heart_at', case when v_new_hearts < 5 then v_new_updated + interval '1 hour' else null end
   );
 end $$;
 

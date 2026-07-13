@@ -12,9 +12,12 @@ import { useThemeMode } from '@/lib/theme-context';
  * onboarding durumundan bağımsız açılabilmesi için root layout'ta guard'sız
  * bir Stack.Screen olarak tanımlı (bkz. _layout.tsx, auth-callback ile aynı desen).
  *
- * ⚠️ TASLAK METİN — hukuki inceleme YAPILMADI. Yayına almadan önce bir
- * avukata/KVKK danışmanına onaylatılmalı (BACKEND.md §9 madde 6, henüz açık
- * karar). Fiyatlar gibi bu da bilerek placeholder bırakıldı.
+ * ⚠️ İÇ NOT (kullanıcıya gösterilmez) — bu metin hukuki incelemeden GEÇMEDİ.
+ * Okul/dershane satışı öncesi (öğretmenler değerlendirme için bu ekranı da
+ * açacak) bir avukata/KVKK danışmanına onaylatılması ŞART — özellikle 18 yaş
+ * altı öğrenci verisi kurumsal bağlamda daha sıkı incelenir (BACKEND.md §9
+ * madde 6, henüz kapanmadı). Bu not yalnız kod yorumu olarak kalmalı; ekranda
+ * "taslak" ibaresi kullanıcıya güvensiz görünür, önceden yanlışlıkla oradaydı.
  */
 export default function HukukiScreen() {
   const router = useRouter();
@@ -34,12 +37,7 @@ export default function HukukiScreen() {
 
         <ScrollView contentContainerStyle={styles.scroll}>
           <Card style={styles.card}>
-            <Text style={[styles.draftNote, { color: surface.textSecondary }]}>
-              ⚠️ Bu metin taslaktır, hukuki incelemeden geçmedi. Yalnızca kullanıcıya ne
-              toplandığını/nasıl kullanıldığını şeffaf biçimde göstermek için buradadır.
-            </Text>
-
-            <Text style={[styles.h1, { color: surface.text }]}>Gizlilik Politikası (taslak)</Text>
+            <Text style={[styles.h1, { color: surface.text }]}>Gizlilik Politikası</Text>
             <Text style={[styles.p, { color: surface.textSecondary }]}>
               Atlas (“uygulama”), YKS’ye hazırlanan öğrencilere yönelik bir eğitim uygulamasıdır. Bu
               metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (“KVKK”) kapsamında hangi
@@ -83,7 +81,7 @@ export default function HukukiScreen() {
               dahilinde kullanmalısın.
             </Text>
 
-            <Text style={[styles.h1, { color: surface.text, marginTop: 22 }]}>Kullanım Şartları (taslak)</Text>
+            <Text style={[styles.h1, { color: surface.text, marginTop: 22 }]}>Kullanım Şartları</Text>
             <Text style={[styles.p, { color: surface.textSecondary }]}>
               Uygulamayı kullanarak burada açıklanan kurallara uymayı kabul edersin: hesabını
               başkasıyla paylaşmama, içerikleri izinsiz çoğaltıp dağıtmama, premium/can satın
@@ -112,12 +110,6 @@ const styles = StyleSheet.create({
   title: { fontSize: 17, fontFamily: AtlasFonts.heading },
   scroll: { paddingHorizontal: 18, paddingBottom: 30 },
   card: { gap: 2 },
-  draftNote: {
-    fontSize: 12,
-    fontFamily: AtlasFonts.bodyBold,
-    marginBottom: 14,
-    lineHeight: 17,
-  },
   h1: { fontSize: 17, fontFamily: AtlasFonts.heading, marginBottom: 8 },
   h2: { fontSize: 14, fontFamily: AtlasFonts.heading, marginTop: 14, marginBottom: 4 },
   p: { fontSize: 13, fontFamily: AtlasFonts.bodySemi, lineHeight: 19 },

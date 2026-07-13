@@ -14,7 +14,7 @@ Dashboard → **SQL Editor** → dosya içeriğini yapıştır → Run. **Sıra 
 | 3 | `seed_tarih.sql` | Tarih 6 konu/30 soru/12 kart + Coğrafya-Felsefe test içeriği | ⬜ çalıştır |
 | 4 | `username.sql` | username benzersizliği + kayıt formu desteği | ⬜ çalıştır |
 | 5 | `onboarding.sql` | `profiles.onboarding_completed` kolonu (hedef okul/bölüm ekranı) | ⬜ çalıştır |
-| 6 | `hearts.sql` | `refill_hearts()` (ücretli can doldurma) + `calc_regen_hearts()`/`get_hearts()` (**8 saatte 1 can yenileme + geri sayım**) + `lose_heart()` (can artık quiz bitmeden, her yanlışta ANINDA düşer, önce regen'i uygular) | ⬜ (yeniden) çalıştır |
+| 6 | `hearts.sql` | `refill_hearts()` (ücretli can doldurma) + `calc_regen_hearts()`/`get_hearts()` (**1 saatte 1 can yenileme + geri sayım**) + `lose_heart()` (can artık quiz bitmeden, her yanlışta ANINDA düşer, önce regen'i uygular) | ⬜ (yeniden) çalıştır |
 | 7 | `monetization.sql` | `ads_removed` kolonu + kolon bazlı yazma kilidi + premium/reklamsız placeholder RPC'leri | ⬜ çalıştır |
 | 8 | `yks_programs.sql` | YÖK Atlas lisans program verisi (`yks_programs`+`yks_program_stats`) — scraper: `tools/yokatlas-scraper/` | ✅ yüklendi (12.063 program, 32.225 stat satırı, 2023-2025) |
 | 9 | `score_rank_distribution.sql` | Puan-sıra dağılımı VIEW'ı (yks_program_stats üzerinden, ayrı scraper gerekmedi) | ✅ yüklendi |
@@ -41,7 +41,7 @@ dosya bunu GRANT ile kapatıyor — atlamayın.
 `hearts.sql` da tekrar çalıştırılabilir (create or replace).
 
 **ÖNEMLİ — `hearts.sql`'i VE `finish_quiz.sql`'i YENİDEN çalıştır:** (1) can
-8 saatte 1 kendiliğinden yenileniyor (`calc_regen_hearts()`/`get_hearts()`,
+1 saatte 1 kendiliğinden yenileniyor (`calc_regen_hearts()`/`get_hearts()`,
 BACKEND.md §4.1/§6.6) ve istemci bunu geri sayım olarak gösteriyor (kale
 ekranı, ana sayfa, "Canın Bitti" ekranı); (2) can artık quiz bitmeden, her
 yanlış cevapta ANINDA `lose_heart()` ile düşüyor (önce bekleyen regen'i
@@ -133,7 +133,7 @@ Davranış notları:
   RPC'siyle düşer (istemci: `checkAnswer` yanlışta çağırır) — quiz mode'una
   göre (premium dahil herkes aynı 0-5 tavanına tabi); flashcards can yakmaz.
   `finish_quiz` yalnız güncel can sayısını `hearts_left` olarak raporlar,
-  KENDİSİ DÜŞÜRMEZ. Can 8 saatte 1 kendiliğinden yenilenir (`get_hearts()`,
+  KENDİSİ DÜŞÜRMEZ. Can 1 saatte 1 kendiliğinden yenilenir (`get_hearts()`,
   istemci UI'da geri sayım gösterir) VEYA `refill_hearts()` ile (satın alma)
   anında dolar (BACKEND.md §4.1, karar kesin).
 - `single` VE `weekly` modda doğru çözülen soru yanlış havuzundan temizlenir

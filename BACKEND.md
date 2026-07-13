@@ -90,10 +90,11 @@ sabitlenmiş; "ÖNERİ" = henüz kararlaştırılmadı, Göktuğ'la netleştirin
   bitmesini beklemez, bkz. §6.1 notu). 0 canda quiz'e devam edilemez: "Canın
   Bitti" ekranına düşer VE otomatik olarak can satın alma ekranına (`/odeme`)
   yönlendirilir — kullanıcı ayrıca bir butona basmak zorunda kalmaz.
-- **KESİN (2026-07-08, son karar):** Can **8 saatte 1** kendiliğinden
+- **KESİN (2026-07-13, son karar):** Can **1 saatte 1** kendiliğinden
   yenilenir (`calc_regen_hearts()`/`get_hearts()`, bkz. `supabase/hearts.sql`).
-  Bu özellik aynı gün önce eklendi, sonra "olmasın" denip tamamen kaldırıldı,
-  sonra TEKRAR istenip son haliyle geri getirildi — bu kez kullanıcı arayüzünde
+  Bu özellik 2026-07-08'de önce eklendi, sonra "olmasın" denip tamamen
+  kaldırıldı, sonra TEKRAR istenip 8 saatte 1 olarak geri getirildi, son
+  olarak 2026-07-13'te hız 1 saatte 1'e çıkarıldı — kullanıcı arayüzünde
   **görünür bir geri sayımla** birlikte (kale ekranı, ana sayfa, "Canın Bitti"
   ekranı: "+1 can: Xsa Ydk"). Kullanıcı yenilenme mekanizmasını UI'dan görüp
   öğrenebilmeli — bu şart. Ayrıca can satın alarak da (iyzico) anında 5/5'e
@@ -251,7 +252,7 @@ içeriği **prototipte hazır**: `index.html` içinde `TOPIC_QS` (5 soru),
 `WEEKLY_QS` (5 karma soru), `CARDS_BY_TOPIC` (4 konu × 3 kart), `MISTAKES`
 (4 örnek). Bunları SQL insert'e çevir (küçük script yeterli). Sonrası içerik
 ekibi/editör işi.
-
+tmen
 **2026-07-10 güncelleme — kalan derslere TASLAK içerik eklendi:**
 - `supabase/seed_tyt_extra.sql` — Coğrafya/Felsefe'nin minimal seed'ine ek
   konular + tüm TYT dersleri için flashcard; Fizik/Kimya/Biyoloji/Türkçe
@@ -268,7 +269,7 @@ her sorunun `correct_index`'i seçeneklerle karşılaştırılarak doğrulandı 
 yalnız kesin/tartışmasız temel müfredat bilgisi kullanıldı.
 
 ### 6.6 Can yenileme — TAMAMLANDI (son karar)
-"8 saatte 1 can" (§4.1) uygulandı: `supabase/hearts.sql` içinde
+"1 saatte 1 can" (§4.1) uygulandı: `supabase/hearts.sql` içinde
 `calc_regen_hearts()` (saf hesap) + `get_hearts()` (RPC, kalıcı yazar +
 `next_heart_at` döner). İstemci kale/ana sayfa/"Canın Bitti" ekranlarını
 açarken `get_hearts()` çağırır ve geri sayımı gösterir (`components/hearts/
@@ -306,7 +307,7 @@ eklendi (aynı gün) — geri sayım UI'ı olmadan sadece sessiz regen istenmedi
 
 ## 9. Açık Kararlar (Göktuğ'la netleştirilecek)
 
-1. ~~Can zamanla yenilensin mi?~~ → **EVET, 8 saatte 1 + görünür geri sayım — karar kesin** (§4.1, §6.6). "Reklam izle can kazan" maddesi 7 numaralı karara bağlı olarak KAPANDI — v1'de reklam altyapısı yok, bu yüzden reklamla can kazanma da yok.
+1. ~~Can zamanla yenilensin mi?~~ → **EVET, 1 saatte 1 + görünür geri sayım — karar kesin** (§4.1, §6.6; hız 2026-07-13'te 8 saatte 1'den 1 saatte 1'e çıkarıldı). "Reklam izle can kazan" maddesi 7 numaralı karara bağlı olarak KAPANDI — v1'de reklam altyapısı yok, bu yüzden reklamla can kazanma da yok.
 2. ~~Abonelik altyapısı: RevenueCat mi, StoreKit2/Play Billing doğrudan mı?~~ → **iyzico'ya karar verildi** (§4.9, §7).
 3. ~~Streak dondurma (Duolingo "streak freeze") olacak mı?~~ → **HAYIR, v1'de yok** (2026-07-10 karar). Basit tutuluyor: gün atlanırsa seri sıfırlanır. v2'de tekrar değerlendirilebilir.
 4. ~~AYT içeriğinin v1'e girip girmeyeceği~~ → **EVET, v1'de var** (2026-07-10 karar). `subjects` tablosuna `tarih_ayt`/`cografya_ayt`/`felsefe_ayt` eklendi (bkz. `supabase/ayt-subjects.sql`, `edebiyat` zaten vardı); harita ekranına TYT/AYT geçiş sekmesi eklendi (yalnız `exam_track='tyt_ayt_ea'` kullanıcılarında görünür, bkz. `components/map/map-screen.tsx`). Taslak içerik: `supabase/seed_ayt.sql`.

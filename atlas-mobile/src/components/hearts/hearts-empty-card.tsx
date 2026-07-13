@@ -16,7 +16,7 @@ export function formatCountdown(ms: number) {
 }
 
 /**
- * quiz.tsx ve quiz-haftalik.tsx'teki ortak "Canın Bitti" ekranı. Can 8 saatte
+ * quiz.tsx ve quiz-haftalik.tsx'teki ortak "Canın Bitti" ekranı. Can 1 saatte
  * 1 kendiliğinden yenilenir (BACKEND.md §4.1, `get_hearts()`) — burada canlı
  * geri sayım gösterilir; can yenilenince ya da satın alınınca (odaktan dönünce
  * de kontrol edilir) `onHeartsAvailable` çağrılır ve quiz kaldığı yerden devam eder.
@@ -61,7 +61,7 @@ export function HeartsEmptyCard({
     }, [check]),
   );
 
-  // Ekranda beklerken de 8 saatlik yenilenmeyi yakalamak için periyodik kontrol
+  // Ekranda beklerken de 1 saatlik yenilenmeyi yakalamak için periyodik kontrol
   useEffect(() => {
     const poll = setInterval(check, 60_000);
     const tick = setInterval(() => setNow(Date.now()), 30_000);
