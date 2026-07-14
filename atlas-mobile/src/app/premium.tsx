@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PremiumBenefits } from '@/components/premium/premium-benefits';
 import { AtlasFonts, AtlasGradients } from '@/constants/atlas-theme';
+import { safeGoBack } from '@/lib/navigation';
 import type { PremiumPlan } from '@/lib/purchases';
 
 /**
@@ -24,7 +25,7 @@ export default function PremiumScreen() {
     <LinearGradient colors={AtlasGradients.bossGold} style={styles.container}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
+          <Pressable onPress={() => safeGoBack(router)} hitSlop={10}>
             <Text style={styles.back}>‹ Geri</Text>
           </Pressable>
         </View>

@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,22 +7,29 @@ import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
 import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
 import { TR_CITIES, foldTr } from '@/constants/tr-cities';
-import { fetchTercihOnerileri } from '@/lib/queries';
+import { safeGoBack } from '@/lib/navigation';
+import { fetchTercihSiraAraligi } from '@/lib/queries';
 import { useThemeMode } from '@/lib/theme-context';
-import type { TercihOneri, TercihRisk } from '@/lib/types';
+import type { TercihAralikSonuc, TercihRisk } from '@/lib/types';
 import type { ScoreType } from '@shared/yks-calc';
 import { yuvarla } from '@shared/yks-calc';
 
 /**
- * EKRAN — Tercih Robotu (madde 3).
- * Kullanıcı YA sırasını YA puanını + filtreleri girer; tercih_oner RPC'si
- * (supabase/tercih_robotu.sql) her programı taban sıra/puanıyla kıyaslayıp
- * 3 risk seviyesine ayırır. Veri kaynağı yks_programs/yks_program_stats
- * (tools/yokatlas-scraper ile toplanıp yüklenir). Puan sekmesindeki
- * "Tercih Robotu" butonundan açılır (bkz. (tabs)/puan.tsx).
+ * EKRAN — Tercih Robotu (2026-07-14 revizyonu: sıralama ARALIĞI modeli).
+ * Kullanıcı en düşük (en iyi) ve en yüksek (en kötü) sıralamasını girer;
+ * `tercih_sira_araligi` RPC'si (supabase/tercih_aralik.sql) o aralıktaki
+ * taban sıraya sahip TÜM programları listeler — puan girişi kaldırıldı
+ * (kullanıcı isteği), ama Puan Türü/Yıl/Risk/Üniversite Türü filtreleri VE
+ * risk rozetleri (🟢🟡🔴) korunuyor: risk artık RPC'den değil, sonucun
+ * KULLANICININ KENDİ girdiği [rankMin, rankMax] aralığının neresine
+ * düştüğüne göre İSTEMCİDE hesaplanıyor (alt üçte bir = güvenli, orta =
+ * dengeli, üst üçte bir = riskli) — bkz. `riskFromPosition()`.
  *
- * NOT: Kullanıcının sırası/puanı ELLE girilir (madde 1a). Net'ten otomatik
- * türetme ve önlisans/geçmiş yıl sırası ikinci adımda (madde 2c) eklenecek.
+ * Puan sekmesindeki "Tercih Robotu" butonundan açılır (bkz. (tabs)/puan.tsx).
+ *
+ * Veri kısıtı: taban sıralama (min_rank) YÖK Atlas'ta yalnız GÜNCEL yıl
+ * (2025) için var — başka yıl seçilirse sonuç boş dönebilir (aşağıdaki
+ * uyarı buna göre gösterilir).
  */
 
 const SCORE_TYPES: { value: ScoreType | null; label: string }[] = [
@@ -54,13 +61,29 @@ const RISK_META: Record<TercihRisk, { label: string; emoji: string; color: strin
   riskli: { label: 'Riskli', emoji: '🔴', color: AtlasColors.redDark, bg: AtlasColors.redLight },
 };
 
+/**
+ * Bir programın taban sırası, kullanıcının girdiği [rankMin, rankMax]
+ * aralığının neresine düşüyor? Alt üçte bir (en iyi/en düşük sıraya yakın) =
+ * güvenli, orta üçte bir = dengeli, üst üçte bir (en kötü/en yüksek sıraya
+ * yakın) = riskli. rankMin===rankMax ise (tek sayı girildiyse) hepsi dengeli sayılır.
+ */
+function riskFromPosition(programRank: number, rankMin: number, rankMax: number): TercihRisk {
+  if (rankMax <= rankMin) return 'dengeli';
+  const fraction = (programRank - rankMin) / (rankMax - rankMin);
+  if (fraction <= 1 / 3) return 'guvenli';
+  if (fraction <= 2 / 3) return 'dengeli';
+  return 'riskli';
+}
+
+type TercihSonucRisk = TercihAralikSonuc & { risk: TercihRisk };
+
 export default function TercihScreen() {
   const router = useRouter();
   const { mode } = useThemeMode();
   const surface = AtlasSurface[mode];
 
-  const [rank, setRank] = useState('');
-  const [score, setScore] = useState('');
+  const [rankMin, setRankMin] = useState('');
+  const [rankMax, setRankMax] = useState('');
   const [scoreType, setScoreType] = useState<ScoreType | null>('SAY');
   const [year, setYear] = useState(YEARS[0]);
   const [risk, setRisk] = useState<TercihRisk | null>(null); // varsayılan: Hepsi
@@ -68,57 +91,65 @@ export default function TercihScreen() {
   const [city, setCity] = useState('');
   const [program, setProgram] = useState('');
   const [university, setUniversity] = useState('');
-  const [maxResult, setMaxResult] = useState('50');
+  const [maxResult, setMaxResult] = useState('100');
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<TercihOneri[] | null>(null);
+  const [rawResults, setRawResults] = useState<TercihAralikSonuc[] | null>(null);
 
-  const setRankInput = (v: string) => {
-    setRank(v.replace(/[^0-9]/g, ''));
-    setResults(null);
+  const setRankMinInput = (v: string) => {
+    setRankMin(v.replace(/[^0-9]/g, ''));
+    setRawResults(null);
   };
-  const setScoreInput = (v: string) => {
-    // rakam + tek ayraç (virgül/nokta) — virgülü noktaya çeviririz
-    const clean = v.replace(',', '.').replace(/[^0-9.]/g, '');
-    const parts = clean.split('.');
-    setScore(parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : clean);
-    setResults(null);
+  const setRankMaxInput = (v: string) => {
+    setRankMax(v.replace(/[^0-9]/g, ''));
+    setRawResults(null);
   };
   const setMaxInput = (v: string) => {
     const clean = v.replace(/[^0-9]/g, '');
-    setMaxResult(clean === '' ? '' : String(Math.min(Number(clean), 200)));
+    setMaxResult(clean === '' ? '' : String(Math.min(Number(clean), 300)));
   };
 
-  const rankNum = rank === '' ? null : Number(rank);
-  const scoreNum = score === '' || score === '.' ? null : Number(score);
-  const rankUsedOnOldYear = rankNum != null && scoreNum == null && year !== 2025;
+  const rankMinNum = rankMin === '' ? null : Number(rankMin);
+  const rankMaxNum = rankMax === '' ? null : Number(rankMax);
+  const rankDataMissingYear = year !== 2025;
+
+  // Ham sonuçlara risk ekle (kullanıcının aralığına göre) — filtre/aralık
+  // değişince yeniden hesaplanır, RPC'yi tekrar çağırmaya gerek yok.
+  const resultsWithRisk: TercihSonucRisk[] | null = useMemo(() => {
+    if (!rawResults || rankMinNum == null || rankMaxNum == null) return rawResults as TercihSonucRisk[] | null;
+    return rawResults.map((r) => ({
+      ...r,
+      risk: r.minRank != null ? riskFromPosition(r.minRank, rankMinNum, rankMaxNum) : 'dengeli',
+    }));
+  }, [rawResults, rankMinNum, rankMaxNum]);
+
+  const results = resultsWithRisk && risk ? resultsWithRisk.filter((r) => r.risk === risk) : resultsWithRisk;
 
   const getir = async () => {
     if (busy) return;
-    if (rankNum == null && scoreNum == null) {
-      setError('Önce sıralamanı ya da puanını gir.');
+    if (rankMinNum == null || rankMaxNum == null) {
+      setError('En düşük ve en yüksek sıralamanı gir.');
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const list = await fetchTercihOnerileri({
-        scoreType,
+      const list = await fetchTercihSiraAraligi({
+        rankMin: rankMinNum,
+        rankMax: rankMaxNum,
         year,
-        rank: rankNum,
-        score: rankNum == null ? scoreNum : null, // sıra verildiyse puanı yok say
-        risk,
+        scoreType,
         city: city.trim() || null,
         universityType: uniType,
         qProgram: program.trim(),
         qUniversity: university.trim(),
-        limit: maxResult === '' ? 50 : Number(maxResult),
+        limit: maxResult === '' ? 100 : Number(maxResult),
       });
-      setResults(list);
+      setRawResults(list);
     } catch (e) {
-      setResults(null);
-      setError(e instanceof Error ? e.message : 'Öneri getirilemedi — internetini kontrol edip tekrar dene.');
+      setRawResults(null);
+      setError(e instanceof Error ? e.message : 'Liste getirilemedi — internetini kontrol edip tekrar dene.');
     } finally {
       setBusy(false);
     }
@@ -128,7 +159,7 @@ export default function TercihScreen() {
     <View style={[styles.container, { backgroundColor: surface.bg }]}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
+          <Pressable onPress={() => safeGoBack(router)} hitSlop={10}>
             <Text style={[styles.back, { color: surface.text }]}>‹ Geri</Text>
           </Pressable>
           <Text style={[styles.title, { color: surface.text }]}>🎯 Tercih Robotu</Text>
@@ -137,43 +168,42 @@ export default function TercihScreen() {
 
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <Text style={[styles.intro, { color: surface.textSecondary }]}>
-            Sıralanı veya puanını gir; filtrele. Robot programları taban sıra/puanına göre
-            3 risk seviyesinde önerir — 🟢 güvenli, 🟡 dengeli, 🔴 riskli.
+            En düşük (en iyi) ve en yüksek (en kötü) sıralamanı gir; filtrele. Robot bu aralıktaki
+            programları 3 risk seviyesinde gösterir — 🟢 güvenli, 🟡 dengeli, 🔴 riskli.
           </Text>
 
-          {/* SIRA / PUAN */}
+          {/* SIRA ARALIĞI */}
           <Card style={styles.card}>
             <View style={styles.inputRow}>
               <View style={styles.inputCol}>
-                <Text style={[styles.fieldLabel, { color: surface.textSecondary }]}>SIRAN</Text>
+                <Text style={[styles.fieldLabel, { color: surface.textSecondary }]}>EN DÜŞÜK SIRALAMA</Text>
                 <TextInput
                   style={[styles.input, { color: surface.text, borderColor: surface.cardBorder }]}
-                  placeholder="ör. 20000"
+                  placeholder="ör. 10000"
                   placeholderTextColor={surface.textSecondary}
                   keyboardType="number-pad"
-                  value={rank}
-                  onChangeText={setRankInput}
+                  value={rankMin}
+                  onChangeText={setRankMinInput}
                 />
               </View>
-              <View style={styles.orCol}>
-                <Text style={[styles.orText, { color: surface.textSecondary }]}>veya</Text>
-              </View>
               <View style={styles.inputCol}>
-                <Text style={[styles.fieldLabel, { color: surface.textSecondary }]}>PUAN</Text>
+                <Text style={[styles.fieldLabel, { color: surface.textSecondary }]}>EN YÜKSEK SIRALAMA</Text>
                 <TextInput
                   style={[styles.input, { color: surface.text, borderColor: surface.cardBorder }]}
-                  placeholder="ör. 450.5"
+                  placeholder="ör. 50000"
                   placeholderTextColor={surface.textSecondary}
-                  keyboardType="decimal-pad"
-                  value={score}
-                  onChangeText={setScoreInput}
+                  keyboardType="number-pad"
+                  value={rankMax}
+                  onChangeText={setRankMaxInput}
                 />
               </View>
             </View>
-            <Text style={[styles.hint, { color: surface.textSecondary }]}>
-              İkisini birden girersen sıra esas alınır. Sıra ile arama şimdilik yalnız 2025 için
-              çalışır; geçmiş yıllar için puan gir.
-            </Text>
+            {rankDataMissingYear && (
+              <Text style={[styles.hint, { color: surface.textSecondary }]}>
+                ⚠️ {year} için taban sıra verisi yok; arama boş dönebilir. Taban sıralama verisi
+                yalnız 2025 kılavuz dönemi için mevcut.
+              </Text>
+            )}
           </Card>
 
           {/* Filtreler */}
@@ -184,7 +214,7 @@ export default function TercihScreen() {
               selected={scoreType}
               onSelect={(v) => {
                 setScoreType(v);
-                setResults(null);
+                setRawResults(null);
               }}
               surface={surface}
               activeColor={AtlasColors.purple}
@@ -196,23 +226,14 @@ export default function TercihScreen() {
               selected={year}
               onSelect={(y) => {
                 setYear(y);
-                setResults(null);
+                setRawResults(null);
               }}
               surface={surface}
               activeColor={AtlasColors.blue}
             />
 
             <Text style={[styles.groupLabel, { color: surface.textSecondary }]}>RİSK</Text>
-            <PillRow
-              options={RISKS}
-              selected={risk}
-              onSelect={(v) => {
-                setRisk(v);
-                setResults(null);
-              }}
-              surface={surface}
-              activeColor={AtlasColors.orange}
-            />
+            <PillRow options={RISKS} selected={risk} onSelect={setRisk} surface={surface} activeColor={AtlasColors.orange} />
 
             <Text style={[styles.groupLabel, { color: surface.textSecondary }]}>ÜNİVERSİTE TÜRÜ</Text>
             <PillRow
@@ -220,7 +241,7 @@ export default function TercihScreen() {
               selected={uniType}
               onSelect={(v) => {
                 setUniType(v);
-                setResults(null);
+                setRawResults(null);
               }}
               surface={surface}
               activeColor={AtlasColors.green}
@@ -235,7 +256,7 @@ export default function TercihScreen() {
               value={city}
               onChangeText={(v) => {
                 setCity(v);
-                setResults(null);
+                setRawResults(null);
               }}
               suggestions={TR_CITIES}
               surface={surface}
@@ -247,7 +268,7 @@ export default function TercihScreen() {
               value={program}
               onChangeText={(v) => {
                 setProgram(v);
-                setResults(null);
+                setRawResults(null);
               }}
               surface={surface}
               onSubmit={getir}
@@ -258,14 +279,14 @@ export default function TercihScreen() {
               value={university}
               onChangeText={(v) => {
                 setUniversity(v);
-                setResults(null);
+                setRawResults(null);
               }}
               surface={surface}
               onSubmit={getir}
             />
             <LabeledInput
               label="MAX SONUÇ"
-              placeholder="50"
+              placeholder="100"
               value={maxResult}
               onChangeText={setMaxInput}
               surface={surface}
@@ -280,12 +301,6 @@ export default function TercihScreen() {
             </View>
           </Card>
 
-          {rankUsedOnOldYear && (
-            <Text style={[styles.warn, { color: surface.textSecondary }]}>
-              ⚠️ {year} için taban sıra verisi yok; sıra ile arama boş dönebilir. Bu yıl için puan gir.
-            </Text>
-          )}
-
           {error && <Text style={styles.error}>{error}</Text>}
 
           <Btn3D variant="orange" onPress={getir} disabled={busy}>
@@ -295,8 +310,8 @@ export default function TercihScreen() {
           {results && results.length === 0 && (
             <Card style={styles.card}>
               <Text style={{ color: surface.textSecondary }}>
-                Bu filtrelerle uygun program bulunamadı — sıra/puanını ya da filtreleri gevşetip
-                tekrar dene.
+                Bu filtrelerle uygun program bulunamadı — aralığı ya da filtreleri gevşetip tekrar
+                dene.
               </Text>
             </Card>
           )}
@@ -304,14 +319,14 @@ export default function TercihScreen() {
           {results && results.length > 0 && (
             <>
               <Text style={[styles.resultCount, { color: surface.textSecondary }]}>
-                {results.length} program • en yakın taban önce
+                {results.length} program • en iyi sıralama önce
               </Text>
               {results.map((r) => (
-                <ResultCard key={r.programId} item={r} surface={surface} usedRank={rankNum != null} />
+                <ResultCard key={r.programId} item={r} surface={surface} />
               ))}
               <Text style={[styles.disclaimer, { color: surface.textSecondary }]}>
-                ⚠️ Taban puan/sıralar geçmiş yıl verisidir; kontenjan ve sınav zorluğu her yıl değişir.
-                Bu liste bir tahmindir, kesin tercih için ÖSYM/YÖK Atlas&apos;ı da kontrol et.
+                ⚠️ Taban puan/sıralar geçmiş yıl verisidir; kontenjan ve sınav zorluğu her yıl
+                değişir. Bu liste bir tahmindir, kesin tercih için ÖSYM/YÖK Atlas&apos;ı da kontrol et.
               </Text>
             </>
           )}
@@ -457,11 +472,9 @@ function AutocompleteInput({
 function ResultCard({
   item,
   surface,
-  usedRank,
 }: {
-  item: TercihOneri;
+  item: TercihSonucRisk;
   surface: (typeof AtlasSurface)[keyof typeof AtlasSurface];
-  usedRank: boolean;
 }) {
   const meta = RISK_META[item.risk];
   return (
@@ -482,18 +495,9 @@ function ResultCard({
         {item.universityType ? ` • ${item.universityType === 'VAKIF' ? 'Vakıf' : 'Devlet'}` : ''}
       </Text>
       <View style={styles.statLine}>
+        <Stat label="Taban Sıra" value={item.minRank != null ? `~${item.minRank.toLocaleString('tr')}` : '—'} surface={surface} />
         <Stat label="Taban Puan" value={item.minScore != null ? String(yuvarla(item.minScore)) : '—'} surface={surface} />
-        <Stat
-          label="Taban Sıra"
-          value={item.minRank != null ? `~${item.minRank.toLocaleString('tr')}` : '—'}
-          surface={surface}
-        />
         <Stat label="Kontenjan" value={item.quota != null ? String(item.quota) : '—'} surface={surface} />
-        <Stat
-          label={usedRank ? 'Sıra Farkı' : 'Puan Farkı'}
-          value={item.gap != null ? (usedRank ? Math.round(item.gap).toLocaleString('tr') : String(yuvarla(item.gap))) : '—'}
-          surface={surface}
-        />
       </View>
     </Card>
   );
@@ -534,8 +538,6 @@ const styles = StyleSheet.create({
   card: { gap: 12 },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   inputCol: { flex: 1, gap: 6 },
-  orCol: { paddingBottom: 12 },
-  orText: { fontSize: 12, fontFamily: AtlasFonts.bodySemi },
   fieldLabel: { fontSize: 10.5, fontFamily: AtlasFonts.bodyBold, letterSpacing: 0.5 },
   input: {
     borderWidth: 1.5,
@@ -562,7 +564,6 @@ const styles = StyleSheet.create({
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2 },
   onlisansLabel: { fontSize: 12.5, fontFamily: AtlasFonts.bodySemi },
   soon: { fontFamily: AtlasFonts.bodyBold, color: AtlasColors.orange },
-  warn: { fontSize: 11.5, fontFamily: AtlasFonts.bodySemi, lineHeight: 16 },
   error: {
     color: AtlasColors.redDark,
     backgroundColor: AtlasColors.redLight,

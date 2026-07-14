@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
 import { AtlasColors, AtlasFonts, AtlasGradients, AtlasRadius } from '@/constants/atlas-theme';
+import { safeGoBack } from '@/lib/navigation';
 import { fetchCurrentWeeklyExam, fetchProfile, fetchQuestionsByIds } from '@/lib/queries';
 import type { Profile, Question, WeeklyExam } from '@/lib/types';
 
@@ -50,7 +51,7 @@ export default function WeeklyIntroScreen() {
     return Array.from(map, ([name, v]) => ({ name, ...v }));
   }, [questions]);
 
-  const back = () => router.back();
+  const back = () => safeGoBack(router, '/yanlislar');
 
   return (
     <LinearGradient colors={AtlasGradients.weeklyIntro} style={styles.bg}>

@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
 import { AtlasColors, AtlasFonts, AtlasSurface } from '@/constants/atlas-theme';
+import { safeGoBack } from '@/lib/navigation';
 import { fetchTopicSummary } from '@/lib/queries';
 import { useThemeMode } from '@/lib/theme-context';
 
@@ -72,7 +73,7 @@ export default function OzetScreen() {
         style={styles.head}>
         <SafeAreaView edges={['top']}>
           <View style={styles.headRow}>
-            <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backPill}>
+            <Pressable onPress={() => safeGoBack(router, '/harita')} hitSlop={10} style={styles.backPill}>
               <Text style={styles.backText}>‹ Geri</Text>
             </Pressable>
             <View style={styles.headTitles}>

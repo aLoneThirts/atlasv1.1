@@ -14,7 +14,8 @@ import { Platform } from 'react-native';
 
 const NOTIFICATION_ID = 'atlas-exam-countdown';
 
-function daysUntil(examDateIso: string): number {
+/** Bugünden (gün başlangıcı) sınav tarihine kalan gün sayısı — Ev ekranı geri sayım rozeti de bunu kullanır. */
+export function daysUntil(examDateIso: string): number {
   const examDate = new Date(examDateIso);
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);

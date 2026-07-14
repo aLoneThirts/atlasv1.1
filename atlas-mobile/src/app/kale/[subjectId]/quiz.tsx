@@ -11,6 +11,7 @@ import { MascotPop } from '@/components/ui/animated/mascot-pop';
 import { HeartsRow } from '@/components/ui/hearts-row';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
+import { safeGoBack } from '@/lib/navigation';
 import { finishQuiz, fetchTopicQuestions, getHearts, loseHeart } from '@/lib/queries';
 import type { FinishQuizResult, Question, QuizAnswer } from '@/lib/types';
 
@@ -118,7 +119,7 @@ export default function QuizScreen() {
     await advance(localHearts);
   };
 
-  const quit = () => router.back();
+  const quit = () => safeGoBack(router, '/harita');
 
   if (phase === 'loading') {
     return (

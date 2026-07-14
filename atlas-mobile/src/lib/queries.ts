@@ -19,6 +19,8 @@ import type {
   ScoreCoefficients,
   Subject,
   SubjectSummary,
+  TercihAralikFiltre,
+  TercihAralikSonuc,
   TercihFiltre,
   TercihOneri,
   TopicNode,
@@ -268,6 +270,43 @@ export async function fetchTercihOnerileri(f: TercihFiltre): Promise<TercihOneri
     quota: r.quota as number | null,
     risk: r.risk as TercihOneri['risk'],
     gap: r.gap as number | null,
+  }));
+}
+
+/**
+ * Tercih robotu — sıralama ARALIĞI sorgusu (bkz. supabase/tercih_aralik.sql →
+ * tercih_sira_araligi RPC). Kullanıcı en düşük/en yüksek sıralamasını girer,
+ * o aralıktaki taban sıraya sahip TÜM programlar (filtrelerle) listelenir —
+ * risk sınıflandırması/puan girişi yok, tercih_oner'ın yerini aldı (2026-07-14).
+ * Veri kısıtı: min_rank yalnız 2025 için var (bkz. tercih_aralik.sql başlığı).
+ */
+export async function fetchTercihSiraAraligi(f: TercihAralikFiltre): Promise<TercihAralikSonuc[]> {
+  const { data, error } = await supabase.rpc('tercih_sira_araligi', {
+    p_rank_min: f.rankMin,
+    p_rank_max: f.rankMax,
+    p_year: f.year ?? 2025,
+    p_score_type: f.scoreType ?? null,
+    p_city: f.city ?? null,
+    p_university_type: f.universityType ?? null,
+    p_q_program: f.qProgram ?? '',
+    p_q_university: f.qUniversity ?? '',
+    p_limit: f.limit ?? 100,
+  });
+  if (error) throw error;
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    programId: r.program_id as string,
+    university: r.university as string,
+    universityType: r.university_type as string | null,
+    city: r.city as string | null,
+    faculty: r.faculty as string | null,
+    department: r.department as string,
+    scoreType: r.score_type as string,
+    language: r.language as string | null,
+    scholarship: r.scholarship as string | null,
+    year: r.year as number,
+    minScore: r.min_score as number | null,
+    minRank: r.min_rank as number | null,
+    quota: r.quota as number | null,
   }));
 }
 

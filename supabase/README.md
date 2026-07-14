@@ -4,27 +4,34 @@
 1. [supabase.com](https://supabase.com) → New Project (bölge: `eu-central-1` Frankfurt, Türkiye'ye en yakın).
 2. Veritabanı şifresini bir yere kaydet.
 
-## 2. SQL'leri sırayla yükle ✅ (schema yüklendi)
+## 2. SQL'leri sırayla yükle ✅ (2026-07-14: canlı PostgREST şeması üzerinden doğrulandı)
 Dashboard → **SQL Editor** → dosya içeriğini yapıştır → Run. **Sıra önemli:**
+
+> ⚠️ Bu tablodaki ✅/⬜ işaretleri uzun süre güncellenmedi ve YANLIŞ hale
+> gelmişti (çoğu ⬜ görünüyordu ama gerçekte yüklüydü). 2026-07-14'te
+> service_role ile `GET /rest/v1/` (PostgREST OpenAPI spec) çekilip her
+> RPC/tablo/kolon canlıda tek tek doğrulandı — aşağıdaki durumlar buna göre
+> düzeltildi. **Yalnız `seed_tarih_full.sql` gerçekten hâlâ çalıştırılmadı**
+> (bkz. BACKEND.md §6.7).
 
 | # | Dosya | Ne yapar | Durum |
 |---|---|---|---|
 | 1 | `schema.sql` | 13 tablo + RLS + ders seed'leri | ✅ yüklendi |
-| 2 | `finish_quiz.sql` | Atomik quiz bitirme RPC'si (BACKEND.md §6.1) | ⬜ çalıştır |
-| 3 | `seed_tarih.sql` | Tarih 6 konu/30 soru/12 kart + Coğrafya-Felsefe test içeriği | ⬜ çalıştır |
-| 4 | `username.sql` | username benzersizliği + kayıt formu desteği | ⬜ çalıştır |
-| 5 | `onboarding.sql` | `profiles.onboarding_completed` kolonu (hedef okul/bölüm ekranı) | ⬜ çalıştır |
-| 6 | `hearts.sql` | `refill_hearts()` (ücretli can doldurma) + `calc_regen_hearts()`/`get_hearts()` (**1 saatte 1 can yenileme + geri sayım**) + `lose_heart()` (can artık quiz bitmeden, her yanlışta ANINDA düşer, önce regen'i uygular) | ⬜ (yeniden) çalıştır |
-| 7 | `monetization.sql` | `ads_removed` kolonu + kolon bazlı yazma kilidi + premium/reklamsız placeholder RPC'leri | ⬜ çalıştır |
+| 2 | `finish_quiz.sql` | Atomik quiz bitirme RPC'si (BACKEND.md §6.1) | ✅ yüklendi (RPC canlıda doğrulandı) |
+| 3 | `seed_tarih.sql` | Tarih 6 konu/30 soru/12 kart + Coğrafya-Felsefe test içeriği | ✅ yüklendi |
+| 4 | `username.sql` | username benzersizliği + kayıt formu desteği | ✅ yüklendi (`is_username_available` RPC canlıda) |
+| 5 | `onboarding.sql` | `profiles.onboarding_completed` kolonu (hedef okul/bölüm ekranı) | ✅ yüklendi |
+| 6 | `hearts.sql` | `refill_hearts()` (ücretli can doldurma) + `calc_regen_hearts()`/`get_hearts()` (**1 saatte 1 can yenileme + geri sayım**) + `lose_heart()` (can artık quiz bitmeden, her yanlışta ANINDA düşer, önce regen'i uygular) | ✅ yüklendi (tüm RPC'ler canlıda doğrulandı) |
+| 7 | `monetization.sql` | `ads_removed` kolonu + kolon bazlı yazma kilidi + premium/reklamsız placeholder RPC'leri | ✅ yüklendi (`dev_set_premium`/`dev_set_ads_removed` hâlâ DB'de ama istemci artık çağırmıyor — ölü kod, bkz. BACKEND.md §6.7) |
 | 8 | `yks_programs.sql` | YÖK Atlas lisans program verisi (`yks_programs`+`yks_program_stats`) — scraper: `tools/yokatlas-scraper/` | ✅ yüklendi (12.063 program, 32.225 stat satırı, 2023-2025) |
 | 9 | `score_rank_distribution.sql` | Puan-sıra dağılımı VIEW'ı (yks_program_stats üzerinden, ayrı scraper gerekmedi) | ✅ yüklendi |
-| 10 | `score_coefficients.sql` | ÖSYM puan hesaplama şeması (`score_coefficients` placeholder katsayılar + `user_exam_results`) | ✅ yüklendi |
-| 11 | `profile-names.sql` | `first_name`/`last_name` kolonları + Google girişinde de kullanıcı adı sorulması (onboarding genişletildi) | ⬜ çalıştır |
-| 12 | `yks_programs_search.sql` | `turkish_casefold()` + `search_yks_programs()` — okul/bölüm arama (İ/ı harf düzeltmesi) | ⬜ çalıştır |
-| 13 | `tercih_robotu.sql` | Tercih Robotu RPC'si (`tercih_oner`) — sıra/puan + filtre → risk sınıflı program önerileri (madde 3). **Bağımlılık:** `yks_programs.sql` + `yks_programs_search.sql` (turkish_casefold) önce çalışmış olmalı | ⬜ çalıştır |
-| 14 | `seed_tarih_full.sql` | **TAM TYT Tarih içeriği** — 54 ünite / 111 konu (özetli) / 240 soru / 222 bilgi kartı. `topics.summary` kolonunu ekler. `seed_tarih.sql`'in Tarih kısmının yerine geçer (mevcut Tarih içeriğini silip yeniden yükler; Coğrafya/Felsefe'ye dokunmaz). Otomatik üretilir: `node tools/build-tarih-seed.mjs` (kaynak `supabase/content/tarih/*.tsv`). Tekrar çalıştırılabilir. | ⬜ çalıştır |
-| 15 | `premium_expiry.sql` | `profiles.premium_expires_at` kolonu — iyzico ile açılan premium'un süresi (BACKEND.md §4.9) | ⬜ çalıştır |
-| 16 | `payments.sql` | `payments` audit tablosu — iyzico ödeme denemelerinin kaydı, yalnız kullanıcı kendi satırını okur | ⬜ çalıştır |
+| 10 | `score_coefficients.sql` | ÖSYM puan hesaplama şeması (`score_coefficients` + `user_exam_results`) | ✅ yüklendi — gerçek katsayılar da yüklendi (2026-07-14, `tools/score-coefficients/`, bkz. BACKEND.md §11.2) |
+| 11 | `profile-names.sql` | `first_name`/`last_name` kolonları + Google girişinde de kullanıcı adı sorulması (onboarding genişletildi) | ✅ yüklendi |
+| 12 | `yks_programs_search.sql` | `turkish_casefold()` + `search_yks_programs()` — okul/bölüm arama (İ/ı harf düzeltmesi) | ✅ yüklendi |
+| 13 | `tercih_robotu.sql` | Tercih Robotu RPC'si (`tercih_oner`) — sıra/puan + filtre → risk sınıflı program önerileri (madde 3). **Bağımlılık:** `yks_programs.sql` + `yks_programs_search.sql` (turkish_casefold) önce çalışmış olmalı | ✅ yüklendi (`tercih_oner` RPC canlıda) |
+| 14 | `seed_tarih_full.sql` | **TAM TYT Tarih içeriği** — 54 ünite / 111 konu (özetli) / 240 soru / 222 bilgi kartı. `topics.summary` kolonunu ekler. `seed_tarih.sql`'in Tarih kısmının yerine geçer (mevcut Tarih içeriğini silip yeniden yükler; Coğrafya/Felsefe'ye dokunmaz). Otomatik üretilir: `node tools/build-tarih-seed.mjs` (kaynak `supabase/content/tarih/*.tsv`). Tekrar çalıştırılabilir. | ⬜ **hâlâ çalıştırılmadı** — Tarih içeriği hâlâ minimal (bkz. BACKEND.md §3/§6.7) |
+| 15 | `premium_expiry.sql` | `profiles.premium_expires_at` kolonu — iyzico ile açılan premium'un süresi (BACKEND.md §4.9) | ✅ yüklendi |
+| 16 | `payments.sql` | `payments` audit tablosu — iyzico ödeme denemelerinin kaydı, yalnız kullanıcı kendi satırını okur | ✅ yüklendi (tablo var ama 0 satır — gerçek ödeme henüz test edilmedi) |
 
 `finish_quiz.sql` tekrar çalıştırılabilir (create or replace); `seed_tarih.sql`
 idempotenttir — Tarih içeriği zaten varsa hiçbir şey yazmaz. `username.sql`

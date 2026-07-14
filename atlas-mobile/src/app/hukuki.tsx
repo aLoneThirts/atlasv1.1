@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/ui/card';
 import { AtlasFonts, AtlasSurface } from '@/constants/atlas-theme';
+import { safeGoBack } from '@/lib/navigation';
 import { useThemeMode } from '@/lib/theme-context';
 
 /**
@@ -28,7 +29,7 @@ export default function HukukiScreen() {
     <View style={[styles.container, { backgroundColor: surface.bg }]}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
+          <Pressable onPress={() => safeGoBack(router)} hitSlop={10}>
             <Text style={[styles.back, { color: surface.text }]}>‹ Geri</Text>
           </Pressable>
           <Text style={[styles.title, { color: surface.text }]}>Gizlilik ve Şartlar</Text>

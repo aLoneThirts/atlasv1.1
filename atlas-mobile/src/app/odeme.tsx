@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CardForm } from '@/components/payment/card-form';
 import { AtlasFonts, AtlasGradients } from '@/constants/atlas-theme';
+import { safeGoBack } from '@/lib/navigation';
 import { buyAdRemoval, buyHeartRefill, buyPremium, PRODUCT_PRICES, type CardInput, type Product } from '@/lib/purchases';
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -63,7 +64,7 @@ export default function OdemeScreen() {
     <LinearGradient colors={AtlasGradients.onboarding} style={styles.container}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
+          <Pressable onPress={() => safeGoBack(router)} hitSlop={10}>
             <Text style={styles.close}>✕</Text>
           </Pressable>
           <Text style={styles.title}>Ödeme</Text>
@@ -74,7 +75,7 @@ export default function OdemeScreen() {
             <Text style={styles.successEmoji}>{successInfo.emoji}</Text>
             <Text style={styles.successTitle}>{successInfo.title}</Text>
             <Text style={styles.successBody}>{successInfo.body}</Text>
-            <Pressable style={styles.successBtn} onPress={() => router.back()}>
+            <Pressable style={styles.successBtn} onPress={() => safeGoBack(router)}>
               <Text style={styles.successBtnText}>Tamam</Text>
             </Pressable>
           </View>

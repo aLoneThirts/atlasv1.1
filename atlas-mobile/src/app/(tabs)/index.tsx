@@ -11,6 +11,7 @@ import { HeartsRow } from '@/components/ui/hearts-row';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { FireBadge } from '@/components/ui/animated/fire-badge';
 import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
+import { daysUntil } from '@/lib/exam-countdown-notification';
 import { fetchContinueTarget, fetchOpenMistakeCount, fetchProfile, fetchXpToday, getHearts, type HeartsState } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { useThemeMode } from '@/lib/theme-context';
@@ -91,6 +92,21 @@ export default function HomeScreen() {
               <Text style={[styles.name, { color: surface.text }]}>{name}</Text>
             </View>
             <View style={styles.headerActions}>
+              {profile?.exam_date &&
+                (() => {
+                  const days = daysUntil(profile.exam_date as string);
+                  return (
+                    <Pressable
+                      onPress={() => router.push('/ayarlar')}
+                      hitSlop={6}
+                      style={[styles.examBadge, { backgroundColor: surface.card, borderColor: surface.cardBorder }]}>
+                      <Text style={styles.examBadgeEmoji}>📅</Text>
+                      <Text style={[styles.examBadgeText, { color: surface.text }]}>
+                        {days > 0 ? `${days} gün` : days === 0 ? 'Bugün!' : 'Sınav geçti'}
+                      </Text>
+                    </Pressable>
+                  );
+                })()}
               <Pressable
                 onPress={() => router.push('/ayarlar')}
                 hitSlop={10}
@@ -230,6 +246,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modeBtnIcon: { fontSize: 15 },
+  examBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1.5,
+    borderRadius: AtlasRadius.pill,
+    paddingHorizontal: 10,
+    height: 32,
+  },
+  examBadgeEmoji: { fontSize: 12 },
+  examBadgeText: { fontSize: 11.5, fontFamily: AtlasFonts.bodyBold },
   logout: { color: AtlasColors.gray, fontSize: 12, fontFamily: AtlasFonts.bodyBold },
   error: {
     color: AtlasColors.redDark,

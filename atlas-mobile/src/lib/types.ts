@@ -209,3 +209,33 @@ export type TercihOneri = {
   /** Kullanıcı ile taban arasındaki mutlak fark (sıra farkı veya puan farkı). */
   gap: number | null;
 };
+
+/** tercih_sira_araligi RPC'sine gönderilen filtre (bkz. supabase/tercih_aralik.sql). */
+export type TercihAralikFiltre = {
+  rankMin: number;
+  rankMax: number;
+  year?: number;
+  scoreType?: import('@shared/yks-calc').ScoreType | null;
+  city?: string | null;
+  universityType?: 'DEVLET' | 'VAKIF' | null;
+  qProgram?: string;
+  qUniversity?: string;
+  limit?: number;
+};
+
+/** tercih_sira_araligi RPC sonucu — sıralama aralığına giren bir program. */
+export type TercihAralikSonuc = {
+  programId: string;
+  university: string;
+  universityType: string | null;
+  city: string | null;
+  faculty: string | null;
+  department: string;
+  scoreType: string;
+  language: string | null;
+  scholarship: string | null;
+  year: number;
+  minScore: number | null;
+  minRank: number | null;
+  quota: number | null;
+};

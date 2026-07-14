@@ -18,6 +18,7 @@ import { MascotPop } from '@/components/ui/animated/mascot-pop';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
+import { safeGoBack } from '@/lib/navigation';
 import { checkFlashcardAnswer, fetchFlashcardsByTopic, finishQuiz } from '@/lib/queries';
 import type { Flashcard, QuizAnswer } from '@/lib/types';
 
@@ -116,7 +117,7 @@ export default function FlashcardsScreen() {
     }
   };
 
-  const goBack = () => router.back();
+  const goBack = () => safeGoBack(router, '/harita');
 
   if (phase === 'loading') {
     return (

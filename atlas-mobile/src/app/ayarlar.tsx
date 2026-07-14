@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/card';
 import { DateField } from '@/components/ui/date-field';
 import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
 import { refreshExamCountdownNotification } from '@/lib/exam-countdown-notification';
+import { safeGoBack } from '@/lib/navigation';
 import { deleteAccount, fetchProfile, setExamTrack, updateProfile } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
 import { useThemeMode } from '@/lib/theme-context';
@@ -115,7 +116,7 @@ export default function AyarlarScreen() {
     <View style={[styles.container, { backgroundColor: surface.bg }]}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10}>
+          <Pressable onPress={() => safeGoBack(router)} hitSlop={10}>
             <Text style={[styles.back, { color: surface.text }]}>‹ Geri</Text>
           </Pressable>
           <Text style={[styles.title, { color: surface.text }]}>Ayarlar</Text>

@@ -10,6 +10,7 @@ import { HeartsRow } from '@/components/ui/hearts-row';
 import { PulsingBadge } from '@/components/ui/animated/pulsing-badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AtlasColors, AtlasFonts, AtlasRadius, ledgeShadow, ledgeShadowWeb } from '@/constants/atlas-theme';
+import { safeGoBack } from '@/lib/navigation';
 import { fetchSubjectTree, fetchSubjects, getHearts, type HeartsState } from '@/lib/queries';
 import type { Subject, TopicNode, UnitNode } from '@/lib/types';
 
@@ -87,7 +88,7 @@ export default function CastleScreen() {
       <SafeAreaView style={styles.safe}>
         <LinearGradient colors={[headColor, headColorDark]} start={{ x: 0, y: 0 }} end={{ x: 0.3, y: 1 }} style={styles.head}>
           <Text style={styles.headEmojiDeco}>{subject?.emoji}</Text>
-          <Pressable onPress={() => router.back()} style={styles.backPill} hitSlop={8}>
+          <Pressable onPress={() => safeGoBack(router, '/harita')} style={styles.backPill} hitSlop={8}>
             <Text style={styles.backText}>‹ Geri</Text>
           </Pressable>
           <View style={styles.row1}>
