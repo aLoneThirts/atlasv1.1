@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
-import { AtlasColors, AtlasGradients, AtlasRadius } from '@/constants/atlas-theme';
+import { AtlasColors, AtlasGradients, AtlasLayout, AtlasRadius } from '@/constants/atlas-theme';
 import { signInWithGoogle } from '@/lib/auth-google';
 import { supabase } from '@/lib/supabase';
 
@@ -275,7 +275,15 @@ function turkishAuthError(e: unknown): string {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safe: { flex: 1 },
-  scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 26, paddingVertical: 30 },
+  scroll: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 26,
+    paddingVertical: 30,
+    width: '100%',
+    maxWidth: AtlasLayout.maxFormWidth,
+    alignSelf: 'center',
+  },
   mascot: { width: 130, height: 130, alignSelf: 'center' },
   title: {
     color: AtlasColors.white,

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
 import { DateField } from '@/components/ui/date-field';
-import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
+import { AtlasColors, AtlasFonts, AtlasLayout, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
 import { refreshExamCountdownNotification } from '@/lib/exam-countdown-notification';
 import { safeGoBack } from '@/lib/navigation';
 import { deleteAccount, fetchProfile, setExamTrack, updateProfile } from '@/lib/queries';
@@ -258,7 +258,14 @@ const styles = StyleSheet.create({
   back: { fontSize: 15, fontFamily: AtlasFonts.bodyBold },
   backSpacer: { width: 40 },
   title: { fontSize: 17, fontFamily: AtlasFonts.heading },
-  scroll: { paddingHorizontal: 18, paddingBottom: 30, gap: 14 },
+  scroll: {
+    paddingHorizontal: 18,
+    paddingBottom: 30,
+    gap: 14,
+    width: '100%',
+    maxWidth: AtlasLayout.maxFormWidth,
+    alignSelf: 'center',
+  },
   card: { gap: 4 },
   sectionTitle: { fontSize: 15, fontFamily: AtlasFonts.heading },
   sectionSub: { fontSize: 12, fontFamily: AtlasFonts.bodySemi, marginTop: 2, marginBottom: 10 },

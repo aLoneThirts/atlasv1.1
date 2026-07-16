@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
@@ -75,21 +75,23 @@ export function HeartsEmptyCard({
 
   return (
     <View style={styles.bg}>
-      <SafeAreaView style={styles.content}>
-        <Image source={require('@/assets/images/atlas/mascot-sad.png')} style={styles.mascot} contentFit="contain" />
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.body}>{message}</Text>
-        {remainingMs !== null && remainingMs > 0 && (
-          <Text style={styles.countdown}>❤️ Sıradaki can: {formatCountdown(remainingMs)}</Text>
-        )}
-        <View style={styles.btnStack}>
-          <Btn3D
-            variant="yellow"
-            onPress={() => router.push({ pathname: '/odeme', params: { product: 'hearts_refill' } } as never)}>
-            ❤️ Can Satın Al
-          </Btn3D>
-          {children}
-        </View>
+      <SafeAreaView style={styles.contentSafe}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <Image source={require('@/assets/images/atlas/mascot-sad.png')} style={styles.mascot} contentFit="contain" />
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.body}>{message}</Text>
+          {remainingMs !== null && remainingMs > 0 && (
+            <Text style={styles.countdown}>❤️ Sıradaki can: {formatCountdown(remainingMs)}</Text>
+          )}
+          <View style={styles.btnStack}>
+            <Btn3D
+              variant="yellow"
+              onPress={() => router.push({ pathname: '/odeme', params: { product: 'hearts_refill' } } as never)}>
+              ❤️ Can Satın Al
+            </Btn3D>
+            {children}
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </View>
   );
@@ -97,7 +99,8 @@ export function HeartsEmptyCard({
 
 const styles = StyleSheet.create({
   bg: { flex: 1, backgroundColor: '#1A0000' },
-  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30, gap: 10 },
+  contentSafe: { flex: 1 },
+  content: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30, paddingVertical: 24, gap: 10 },
   mascot: { width: 130, height: 130, marginBottom: 6 },
   title: { color: AtlasColors.white, fontFamily: AtlasFonts.heading, fontSize: 26 },
   body: { color: 'rgba(255,255,255,0.75)', fontSize: 14, textAlign: 'center', lineHeight: 21 },

@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CardForm } from '@/components/payment/card-form';
-import { AtlasFonts, AtlasGradients } from '@/constants/atlas-theme';
+import { AtlasFonts, AtlasGradients, AtlasLayout } from '@/constants/atlas-theme';
 import { safeGoBack } from '@/lib/navigation';
 import { buyAdRemoval, buyHeartRefill, buyPremium, PRODUCT_PRICES, type CardInput, type Product } from '@/lib/purchases';
 
@@ -71,14 +71,14 @@ export default function OdemeScreen() {
           <View style={styles.headerSpacer} />
         </View>
         {success ? (
-          <View style={styles.successWrap}>
+          <ScrollView contentContainerStyle={styles.successWrap}>
             <Text style={styles.successEmoji}>{successInfo.emoji}</Text>
             <Text style={styles.successTitle}>{successInfo.title}</Text>
             <Text style={styles.successBody}>{successInfo.body}</Text>
             <Pressable style={styles.successBtn} onPress={() => safeGoBack(router)}>
               <Text style={styles.successBtnText}>Tamam</Text>
             </Pressable>
-          </View>
+          </ScrollView>
         ) : (
           <ScrollView contentContainerStyle={styles.scroll}>
             <CardForm productLabel={info.label} priceLabel={info.amount} busy={busy} error={error} onSubmit={submit} />
@@ -102,8 +102,18 @@ const styles = StyleSheet.create({
   close: { color: 'rgba(255,255,255,0.85)', fontSize: 20, fontFamily: AtlasFonts.heading },
   title: { color: 'rgba(255,255,255,0.95)', fontSize: 16, fontFamily: AtlasFonts.headingBold },
   headerSpacer: { width: 20 },
-  scroll: { paddingHorizontal: 20, paddingBottom: 40 },
-  successWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30, gap: 10 },
+  scroll: { paddingHorizontal: 20, paddingBottom: 40, width: '100%', maxWidth: AtlasLayout.maxFormWidth, alignSelf: 'center' },
+  successWrap: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+    paddingVertical: 24,
+    gap: 10,
+    width: '100%',
+    maxWidth: AtlasLayout.maxFormWidth,
+    alignSelf: 'center',
+  },
   successEmoji: { fontSize: 56 },
   successTitle: { color: '#fff', fontSize: 22, fontFamily: AtlasFonts.heading, textAlign: 'center' },
   successBody: { color: 'rgba(255,255,255,0.8)', fontSize: 14, textAlign: 'center', lineHeight: 20 },

@@ -119,6 +119,7 @@ export const SystemFonts = Platform.select({
 /** theme.ts'ten taşınan layout token'ları */
 export const AtlasLayout = {
   maxContentWidth: 800,
+  maxFormWidth: 480,
   bottomTabInset: Platform.select({ ios: 50, android: 80 }) ?? 0,
 } as const;
 

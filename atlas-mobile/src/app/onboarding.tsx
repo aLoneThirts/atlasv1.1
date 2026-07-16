@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
 import { DateField } from '@/components/ui/date-field';
-import { AtlasColors, AtlasGradients, AtlasRadius } from '@/constants/atlas-theme';
+import { AtlasColors, AtlasGradients, AtlasLayout, AtlasRadius } from '@/constants/atlas-theme';
 import { useAuth } from '@/lib/auth-context';
 import { refreshExamCountdownNotification } from '@/lib/exam-countdown-notification';
 import { fetchProfile, setExamTrack, updateProfile } from '@/lib/queries';
@@ -276,7 +276,15 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   safe: { flex: 1 },
-  scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 26, paddingVertical: 30 },
+  scroll: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 26,
+    paddingVertical: 30,
+    width: '100%',
+    maxWidth: AtlasLayout.maxFormWidth,
+    alignSelf: 'center',
+  },
   emoji: { fontSize: 52, textAlign: 'center' },
   title: {
     color: AtlasColors.white,

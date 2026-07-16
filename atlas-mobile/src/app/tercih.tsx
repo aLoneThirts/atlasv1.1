@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
-import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
+import { AtlasColors, AtlasFonts, AtlasLayout, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
 import { TR_CITIES, foldTr } from '@/constants/tr-cities';
 import { safeGoBack } from '@/lib/navigation';
 import { fetchTercihSiraAraligi } from '@/lib/queries';
@@ -533,7 +533,14 @@ const styles = StyleSheet.create({
   back: { fontSize: 15, fontFamily: AtlasFonts.bodyBold },
   backSpacer: { width: 44 },
   title: { fontSize: 18, fontFamily: AtlasFonts.heading },
-  scroll: { paddingHorizontal: 18, paddingBottom: 48, gap: 14 },
+  scroll: {
+    paddingHorizontal: 18,
+    paddingBottom: 48,
+    gap: 14,
+    width: '100%',
+    maxWidth: AtlasLayout.maxFormWidth,
+    alignSelf: 'center',
+  },
   intro: { fontSize: 12.5, fontFamily: AtlasFonts.bodySemi, lineHeight: 18 },
   card: { gap: 12 },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },

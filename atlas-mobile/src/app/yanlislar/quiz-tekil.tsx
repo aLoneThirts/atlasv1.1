@@ -102,7 +102,8 @@ export default function SingleQuizScreen() {
     return (
       <View style={styles.resultBg}>
         <Confetti fire={correct} />
-        <SafeAreaView style={styles.centerContent}>
+        <SafeAreaView style={styles.centerSafe}>
+        <ScrollView contentContainerStyle={styles.centerContent}>
           <Image
             source={correct ? require('@/assets/images/atlas/mascot-happy.png') : require('@/assets/images/atlas/mascot-sad.png')}
             style={styles.mascotBig}
@@ -125,6 +126,7 @@ export default function SingleQuizScreen() {
               Yanlışlara Dön
             </Btn3D>
           </View>
+        </ScrollView>
         </SafeAreaView>
       </View>
     );
@@ -275,7 +277,8 @@ const styles = StyleSheet.create({
   fbHead: { color: AtlasColors.white, fontFamily: AtlasFonts.heading, fontSize: 18 },
   fbExp: { color: 'rgba(255,255,255,0.75)', fontFamily: AtlasFonts.bodySemi, fontSize: 13, textAlign: 'center', marginBottom: 6 },
   resultBg: { flex: 1, backgroundColor: DARK_BG },
-  centerContent: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30, gap: 10 },
+  centerSafe: { flex: 1 },
+  centerContent: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30, paddingVertical: 24, gap: 10 },
   mascotBig: { width: 130, height: 130, marginBottom: 6 },
   resultTitle: { color: AtlasColors.white, fontFamily: AtlasFonts.heading, fontSize: 26 },
   resultSub: { color: 'rgba(255,255,255,0.7)', fontSize: 14, marginBottom: 8, textAlign: 'center', paddingHorizontal: 10 },

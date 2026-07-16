@@ -5,7 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PremiumBenefits } from '@/components/premium/premium-benefits';
-import { AtlasFonts, AtlasGradients } from '@/constants/atlas-theme';
+import { AtlasFonts, AtlasGradients, AtlasLayout } from '@/constants/atlas-theme';
 import { safeGoBack } from '@/lib/navigation';
 import type { PremiumPlan } from '@/lib/purchases';
 
@@ -48,7 +48,15 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   header: { paddingHorizontal: 18, paddingVertical: 10 },
   back: { color: '#5B4400', fontSize: 15, fontFamily: AtlasFonts.bodyBold },
-  scroll: { paddingHorizontal: 24, paddingBottom: 40, alignItems: 'center', gap: 16 },
+  scroll: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    alignItems: 'center',
+    gap: 16,
+    width: '100%',
+    maxWidth: AtlasLayout.maxFormWidth,
+    alignSelf: 'center',
+  },
   crest: { width: 96, height: 96 },
   trust: {
     color: 'rgba(0,0,0,0.55)',
