@@ -29,6 +29,7 @@ export function MapScreen() {
   const [error, setError] = useState<string | null>(null);
   const [examType, setExamType] = useState<ExamType>('tyt');
   const [showAytToggle, setShowAytToggle] = useState(false);
+  const [areaHeight, setAreaHeight] = useState(0);
 
   const load = useCallback(async () => {
     try {
@@ -51,7 +52,11 @@ export function MapScreen() {
   // Genış masaüstü web görünümlerinde harita telefon-genişliğinde kalsın diye ölçek
   // için kullanılan genişliği sınırlıyoruz — cihaz gerçekten dar (telefon) ise etkisiz.
   const effectiveWidth = Math.min(deviceWidth, 460);
-  const scale = effectiveWidth / MAP_REF_WIDTH;
+  const widthScale = effectiveWidth / MAP_REF_WIDTH;
+  // Harita alanı hem genişliğe hem de header/footer arasında kalan gerçek yüksekliğe
+  // göre ölçeklenir — böylece harita her zaman kaydırmaya gerek kalmadan tek ekrana sığar.
+  const heightScale = areaHeight > 0 ? areaHeight / MAP_REF_HEIGHT : widthScale;
+  const scale = Math.min(widthScale, heightScale);
   const overallFrac = castles ? computeOverallFraction(castles) : 0;
   const doneCount = castles ? castles.filter((c) => c.state === 'done').length : 0;
 
@@ -79,7 +84,11 @@ export function MapScreen() {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <ScrollView style={styles.scrollArea} contentContainerStyle={{ paddingBottom: 24 }}>
+        <ScrollView
+          style={styles.scrollArea}
+          scrollEnabled={false}
+          contentContainerStyle={styles.scrollContent}
+          onLayout={(e) => setAreaHeight(e.nativeEvent.layout.height)}>
           <View style={{ width: deviceWidth, alignItems: 'center' }}>
             <View style={{ width: MAP_REF_WIDTH * scale, height: MAP_REF_HEIGHT * scale }}>
               <MapDecorations scale={scale} />
@@ -121,6 +130,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   head: { paddingHorizontal: 18, paddingVertical: 10, gap: 8 },
   scrollArea: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center' },
   headTitle: { fontSize: 18, fontFamily: AtlasFonts.heading, color: AtlasColors.white },
   trackToggle: { flexDirection: 'row', gap: 8 },
   trackPill: {
