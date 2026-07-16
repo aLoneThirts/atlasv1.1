@@ -79,7 +79,7 @@ export function MapScreen() {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+        <ScrollView style={styles.scrollArea} contentContainerStyle={{ paddingBottom: 24 }}>
           <View style={{ width: deviceWidth, alignItems: 'center' }}>
             <View style={{ width: MAP_REF_WIDTH * scale, height: MAP_REF_HEIGHT * scale }}>
               <MapDecorations scale={scale} />
@@ -120,6 +120,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   safe: { flex: 1 },
   head: { paddingHorizontal: 18, paddingVertical: 10, gap: 8 },
+  scrollArea: { flex: 1 },
   headTitle: { fontSize: 18, fontFamily: AtlasFonts.heading, color: AtlasColors.white },
   trackToggle: { flexDirection: 'row', gap: 8 },
   trackPill: {
