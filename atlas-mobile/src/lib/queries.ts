@@ -683,7 +683,11 @@ export async function sendCoachMessage(message: string): Promise<string> {
 
 /** Deneme sonucu kaydı — koç bunu bir sonraki mesajında bağlam olarak görür (BACKEND.md §6.3). */
 export async function saveMockExam(nets: MockExamNets, notes?: string): Promise<void> {
-  const { error } = await supabase.from('mock_exams').insert({ nets, notes: notes ?? null });
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Oturum yok.');
+  const { error } = await supabase.from('mock_exams').insert({ user_id: user.id, nets, notes: notes ?? null });
   if (error) throw error;
 }
 
