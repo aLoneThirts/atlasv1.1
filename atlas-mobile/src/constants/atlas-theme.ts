@@ -172,6 +172,7 @@ export const AtlasSurface = {
 } as const;
 
 export type SurfaceMode = keyof typeof AtlasSurface;
+export type Surface = (typeof AtlasSurface)[SurfaceMode];
 
 /** Duolingo tarzı "flat ledge" gölge — native için shadow/elevation, web için ayrıca boxShadow string'i eklenebilir */
 export function ledgeShadow(color: string, height: number = Press3D.shadowHeight) {

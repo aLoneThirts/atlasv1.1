@@ -1,9 +1,12 @@
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { AtlasColors } from '@/constants/atlas-theme';
+import { useTabBadges } from '@/hooks/use-tab-badges';
 
 /** Atlas alt sekme çubuğu — Ev, Harita, Koç, Yanlışlar, Puan */
 export default function AppTabs() {
+  const { mistakeCount } = useTabBadges();
+
   return (
     <NativeTabs
       backgroundColor={AtlasColors.white}
@@ -23,6 +26,7 @@ export default function AppTabs() {
 
       <NativeTabs.Trigger name="yanlislar">
         <NativeTabs.Trigger.Label>⚠️ Yanlışlar</NativeTabs.Trigger.Label>
+        {mistakeCount > 0 && <NativeTabs.Trigger.Badge>{String(mistakeCount)}</NativeTabs.Trigger.Badge>}
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="puan">

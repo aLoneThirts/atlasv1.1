@@ -13,14 +13,15 @@ import {
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BadgeUnlockPopup } from '@/components/badges/badge-unlock-popup';
 import { Confetti } from '@/components/ui/animated/confetti';
 import { MascotPop } from '@/components/ui/animated/mascot-pop';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
 import { safeGoBack } from '@/lib/navigation';
-import { checkFlashcardAnswer, fetchFlashcardsByTopic, finishQuiz } from '@/lib/queries';
-import type { Flashcard, QuizAnswer } from '@/lib/types';
+import { checkAndAwardBadges, checkFlashcardAnswer, fetchFlashcardsByTopic, finishQuiz } from '@/lib/queries';
+import type { Badge, Flashcard, QuizAnswer } from '@/lib/types';
 
 type Phase = 'loading' | 'empty' | 'cards' | 'done' | 'error';
 
@@ -46,6 +47,7 @@ export default function FlashcardsScreen() {
   const [ok, setOk] = useState(0);
   const [no, setNo] = useState(0);
   const [saveError, setSaveError] = useState(false);
+  const [unlockQueue, setUnlockQueue] = useState<Badge[]>([]);
 
   const answersRef = useRef<QuizAnswer[]>([]);
 
@@ -112,6 +114,11 @@ export default function FlashcardsScreen() {
     setPhase('done');
     try {
       await finishQuiz('flashcards', topicId!, answersRef.current);
+      checkAndAwardBadges()
+        .then((earned) => {
+          if (earned.length > 0) setUnlockQueue((q) => [...q, ...earned]);
+        })
+        .catch(() => {});
     } catch {
       setSaveError(true);
     }
@@ -184,6 +191,7 @@ export default function FlashcardsScreen() {
           </View>
         </ScrollView>
         </SafeAreaView>
+        <BadgeUnlockPopup badge={unlockQueue[0] ?? null} onClose={() => setUnlockQueue((q) => q.slice(1))} />
       </View>
     );
   }

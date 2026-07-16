@@ -11,12 +11,15 @@ import { Pressable, View, StyleSheet } from 'react-native';
 import { ThemedText } from './themed-text';
 
 import { AtlasColors, AtlasFonts, AtlasLayout, AtlasSpacing, ledgeShadowWeb } from '@/constants/atlas-theme';
+import { useTabBadges } from '@/hooks/use-tab-badges';
 
 /** Sabit alt çubuğun yaklaşık yüksekliği — TabSlot'a paddingBottom olarak eklenir */
 const TAB_BAR_HEIGHT = 84;
 
 /** Atlas alt sekmeleri (web) — Ev, Harita, Koç, Yanlışlar, Puan */
 export default function AppTabs() {
+  const { mistakeCount } = useTabBadges();
+
   return (
     <Tabs>
       {/* alttaki sabit sekme çubuğunun içeriğin üzerine binmemesi için pay bırak */}
@@ -33,7 +36,7 @@ export default function AppTabs() {
             <TabButton>🤖 Koç</TabButton>
           </TabTrigger>
           <TabTrigger name="yanlislar" href="/yanlislar" asChild>
-            <TabButton>⚠️ Yanlışlar</TabButton>
+            <TabButton badge={mistakeCount > 0}>⚠️ Yanlışlar</TabButton>
           </TabTrigger>
           <TabTrigger name="puan" href="/puan" asChild>
             <TabButton>🧮 Puan</TabButton>
@@ -44,11 +47,17 @@ export default function AppTabs() {
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+export function TabButton({
+  children,
+  isFocused,
+  badge,
+  ...props
+}: TabTriggerSlotProps & { badge?: boolean }) {
   return (
     <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
       <View style={styles.tabButtonView}>
         {isFocused && <View style={styles.activeNub} />}
+        {badge && <View style={styles.badgeDot} />}
         <ThemedText
           type="small"
           numberOfLines={1}
@@ -113,6 +122,15 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 4,
     backgroundColor: AtlasColors.greenDark,
+  },
+  badgeDot: {
+    position: 'absolute',
+    top: 2,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: AtlasColors.red,
   },
   tabLabel: {
     fontFamily: AtlasFonts.bodySemi,

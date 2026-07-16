@@ -22,11 +22,12 @@ import {
   fetchCoachHistory,
   fetchOpenMistakes,
   fetchProfile,
+  fetchWeeklySummary,
   fetchXpToday,
   saveMockExam,
   sendCoachMessage,
 } from '@/lib/queries';
-import type { MockExamNets, Profile } from '@/lib/types';
+import type { MockExamNets, Profile, WeeklySummary } from '@/lib/types';
 
 const COACH_AVATAR = require('@/assets/images/atlas/mascot-wave.png');
 
@@ -70,6 +71,7 @@ export default function CoachScreen() {
   const [xpToday, setXpToday] = useState(0);
   const [weakest, setWeakest] = useState<{ name: string; count: number } | null>(null);
   const [daysToExam, setDaysToExam] = useState<number | null>(null);
+  const [weekly, setWeekly] = useState<WeeklySummary | null>(null);
 
   const [items, setItems] = useState<ChatItem[]>([]);
   const [input, setInput] = useState('');
@@ -106,25 +108,25 @@ export default function CoachScreen() {
         setLoading(false);
         return;
       }
-      const [history, xp, mistakes] = await Promise.all([
+      const [history, xp, mistakes, weeklySummary] = await Promise.all([
         fetchCoachHistory(),
         fetchXpToday(),
         fetchOpenMistakes(),
+        fetchWeeklySummary(),
       ]);
       setXpToday(xp);
 
       // En zayıf ders: son 30 gün açık yanlışları subjectName'e göre say
+      let best: { name: string; count: number } | null = null;
       if (mistakes.length > 0) {
         const counts = new Map<string, number>();
         for (const m of mistakes) counts.set(m.subjectName, (counts.get(m.subjectName) ?? 0) + 1);
-        let best: { name: string; count: number } | null = null;
         for (const [name, count] of counts) {
           if (!best || count > best.count) best = { name, count };
         }
-        setWeakest(best);
-      } else {
-        setWeakest(null);
       }
+      setWeakest(best);
+      setWeekly({ ...weeklySummary, weakestSubjectName: best?.name ?? null });
 
       const historyItems: ChatItem[] = history.map((m) => ({
         kind: 'msg',
@@ -322,6 +324,12 @@ export default function CoachScreen() {
           {weakest && (
             <Pill color="rgba(255,75,75,0.15)" textColor="#ff9c9c">
               ⚠️ {weakest.name} zayıf ({weakest.count} yanlış)
+            </Pill>
+          )}
+          {weekly && (
+            <Pill color="rgba(28,176,246,0.14)" textColor="#7fd4ff">
+              📈 Bu hafta {weekly.xpThisWeek} XP • {weekly.quizzesThisWeek} quiz • {weekly.mistakesResolvedThisWeek}{' '}
+              yanlış temizlendi
             </Pill>
           )}
         </ScrollView>

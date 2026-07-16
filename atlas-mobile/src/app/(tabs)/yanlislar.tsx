@@ -224,9 +224,16 @@ function MistakeCard({ item, onSolve, surface }: { item: MistakeItem; onSolve: (
   return (
     <Card style={styles.card}>
       <View style={styles.cardHead}>
-        <Pill color={item.subjectColor} textColor={AtlasColors.white}>
-          {item.subjectName}
-        </Pill>
+        <View style={styles.cardHeadLeft}>
+          <Pill color={item.subjectColor} textColor={AtlasColors.white}>
+            {item.subjectName}
+          </Pill>
+          {item.question.difficulty === 3 && (
+            <Pill color={AtlasColors.redLight} textColor={AtlasColors.redDark}>
+              🔥 Öncelikli
+            </Pill>
+          )}
+        </View>
         <Text style={[styles.cardTime, { color: surface.textSecondary }]}>{relativeTr(item.created_at)}</Text>
       </View>
       <Text style={[styles.cardTopic, { color: surface.text }]}>{item.topicTitle}</Text>
@@ -293,6 +300,7 @@ const styles = StyleSheet.create({
   chipTextActive: { color: AtlasColors.white },
   card: { gap: 8 },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cardHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   cardTime: { color: AtlasColors.gray, fontFamily: AtlasFonts.bodySemi, fontSize: 11.5 },
   cardTopic: { color: AtlasColors.inkStrong, fontFamily: AtlasFonts.heading, fontSize: 14.5 },
   cardPrompt: { color: AtlasColors.ink, fontFamily: AtlasFonts.body, fontSize: 13, lineHeight: 19 },

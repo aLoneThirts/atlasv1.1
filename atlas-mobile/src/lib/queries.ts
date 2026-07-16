@@ -5,13 +5,16 @@
  */
 import { supabase } from './supabase';
 import type {
+  Badge,
   CoachMessage,
   ContinueTarget,
   ExamCalcResult,
   FinishQuizResult,
   Flashcard,
   MistakeItem,
+  MockExamHistoryEntry,
   MockExamNets,
+  NotificationItem,
   Profile,
   Question,
   QuizAnswer,
@@ -27,6 +30,7 @@ import type {
   TopicStatus,
   UnitNode,
   WeeklyExam,
+  WeeklySummary,
   YksProgramStat,
   YksProgramSummary,
 } from './types';
@@ -319,6 +323,71 @@ export async function fetchXpToday(): Promise<number> {
   return (data ?? []).reduce((sum, e) => sum + (e.amount as number), 0);
 }
 
+/**
+ * Son `daysBack` gün içinde en az 1 xp_events satırı olan günler (Europe/Istanbul,
+ * YYYY-MM-DD) — Ev ekranı seri takvimi için. Yeni tablo gerekmez, var olan
+ * xp_events'ten türetilir.
+ */
+export async function fetchStudyDays(daysBack = 35): Promise<string[]> {
+  const since = new Date(Date.now() - daysBack * 24 * HOUR).toISOString();
+  const { data, error } = await supabase.from('xp_events').select('created_at').gte('created_at', since);
+  if (error) throw error;
+  const days = new Set<string>();
+  for (const row of (data ?? []) as { created_at: string }[]) {
+    const tr = new Date(new Date(row.created_at).getTime() + 3 * HOUR);
+    days.add(tr.toISOString().slice(0, 10));
+  }
+  return [...days].sort();
+}
+
+/* ------------------------------------------------------------
+   Rozetler (bkz. supabase/badges.sql)
+------------------------------------------------------------ */
+
+/** Rozet kataloğu + bu kullanıcının kazanıp kazanmadığı. */
+export async function fetchBadges(): Promise<Badge[]> {
+  const [catalogRes, earnedRes] = await Promise.all([
+    supabase.from('badges').select('id, key, title, description, emoji').order('sort_order', { ascending: true }),
+    supabase.from('user_badges').select('badge_id, earned_at'),
+  ]);
+  if (catalogRes.error) throw catalogRes.error;
+  if (earnedRes.error) throw earnedRes.error;
+
+  const earnedMap = new Map(
+    ((earnedRes.data ?? []) as { badge_id: string; earned_at: string }[]).map((r) => [r.badge_id, r.earned_at]),
+  );
+  return (
+    (catalogRes.data ?? []) as { id: string; key: string; title: string; description: string; emoji: string }[]
+  ).map((b) => ({
+    id: b.id,
+    key: b.key,
+    title: b.title,
+    description: b.description,
+    emoji: b.emoji,
+    earned: earnedMap.has(b.id),
+    earnedAt: earnedMap.get(b.id) ?? null,
+  }));
+}
+
+/**
+ * check_and_award_badges() RPC — eşiği geçilmiş ama henüz kazanılmamış rozetleri
+ * kaydeder, yeni kazanılanları döner (varsa kutlama popup'ı için). Ev yüklenişinde
+ * ve her quiz bitişinde çağrılmalı.
+ */
+export async function checkAndAwardBadges(): Promise<Badge[]> {
+  const { data, error } = await supabase.rpc('check_and_award_badges');
+  if (error) throw error;
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    id: r.id as string,
+    key: r.key as string,
+    title: r.title as string,
+    description: r.description as string,
+    emoji: r.emoji as string,
+    earned: true,
+    earnedAt: (r.earned_at as string) ?? new Date().toISOString(),
+  }));
+}
+
 /* ------------------------------------------------------------
    Dersler (kaleler) + konu ağacı
 ------------------------------------------------------------ */
@@ -457,7 +526,7 @@ type JoinedQuestionRow = Question & {
 };
 
 const QUESTION_JOIN =
-  'id, topic_id, prompt, options, correct_index, explanation, topics!inner(title, units!inner(subjects!inner(id, name, color, exam_type)))';
+  'id, topic_id, prompt, options, correct_index, explanation, difficulty, topics!inner(title, units!inner(subjects!inner(id, name, color, exam_type)))';
 
 /** id listesiyle soru çek (haftalık sınav) — ders rozeti için subject join'li */
 export async function fetchQuestionsByIds(ids: string[]): Promise<Question[]> {
@@ -477,6 +546,7 @@ export async function fetchQuestionsByIds(ids: string[]): Promise<Question[]> {
         explanation: q.explanation,
         subject_name: q.topics.units.subjects.name,
         subject_color: q.topics.units.subjects.color,
+        difficulty: q.difficulty,
       } satisfies Question,
     ]),
   );
@@ -505,12 +575,17 @@ export async function finishQuiz(
    Yanlış havuzu + haftalık sınav
 ------------------------------------------------------------ */
 
+/**
+ * Açık yanlış havuzu — en zor sorular önce (difficulty desc), eşitlikte en eski
+ * yanlış önce (created_at asc), böylece en çok zorlanılan sorular listenin
+ * başında öncelikli görünür.
+ */
 export async function fetchOpenMistakes(): Promise<MistakeItem[]> {
   const { data, error } = await supabase
     .from('mistakes')
     .select(`id, created_at, wrong_answer_index, questions!inner(${QUESTION_JOIN})`)
     .is('resolved_at', null)
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: true });
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as {
@@ -520,26 +595,29 @@ export async function fetchOpenMistakes(): Promise<MistakeItem[]> {
     questions: JoinedQuestionRow;
   }[];
 
-  return rows.map((m) => ({
-    id: m.id,
-    created_at: m.created_at,
-    wrong_answer_index: m.wrong_answer_index,
-    question: {
-      id: m.questions.id,
-      topic_id: m.questions.topic_id,
-      prompt: m.questions.prompt,
-      options: m.questions.options,
-      correct_index: m.questions.correct_index,
-      explanation: m.questions.explanation,
-      subject_name: m.questions.topics.units.subjects.name,
-      subject_color: m.questions.topics.units.subjects.color,
-    },
-    subjectId: m.questions.topics.units.subjects.id,
-    subjectName: m.questions.topics.units.subjects.name,
-    subjectColor: m.questions.topics.units.subjects.color,
-    subjectExamType: m.questions.topics.units.subjects.exam_type,
-    topicTitle: m.questions.topics.title,
-  }));
+  return rows
+    .map((m) => ({
+      id: m.id,
+      created_at: m.created_at,
+      wrong_answer_index: m.wrong_answer_index,
+      question: {
+        id: m.questions.id,
+        topic_id: m.questions.topic_id,
+        prompt: m.questions.prompt,
+        options: m.questions.options,
+        correct_index: m.questions.correct_index,
+        explanation: m.questions.explanation,
+        subject_name: m.questions.topics.units.subjects.name,
+        subject_color: m.questions.topics.units.subjects.color,
+        difficulty: m.questions.difficulty,
+      },
+      subjectId: m.questions.topics.units.subjects.id,
+      subjectName: m.questions.topics.units.subjects.name,
+      subjectColor: m.questions.topics.units.subjects.color,
+      subjectExamType: m.questions.topics.units.subjects.exam_type,
+      topicTitle: m.questions.topics.title,
+    }))
+    .sort((a, b) => (b.question.difficulty ?? 0) - (a.question.difficulty ?? 0));
 }
 
 export async function fetchQuestionById(id: string): Promise<Question | null> {
@@ -609,6 +687,40 @@ export async function saveMockExam(nets: MockExamNets, notes?: string): Promise<
   if (error) throw error;
 }
 
+/** Deneme net geçmişi (eskiden yeniye) — Puan sekmesindeki trend grafiği için. */
+export async function fetchMockExamHistory(): Promise<MockExamHistoryEntry[]> {
+  const { data, error } = await supabase.from('mock_exams').select('taken_on, nets').order('taken_on', { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as { taken_on: string; nets: MockExamNets }[]).map((r) => ({
+    takenOn: r.taken_on,
+    nets: r.nets,
+    totalNet: Object.values(r.nets ?? {}).reduce((sum, n) => sum + (Number(n) || 0), 0),
+  }));
+}
+
+/** Koç sekmesi "Bu Hafta" özet kartı — son 7 gün XP/quiz/yanlış-temizleme sayıları. */
+export async function fetchWeeklySummary(): Promise<WeeklySummary> {
+  const since = new Date(Date.now() - 7 * 24 * HOUR).toISOString();
+  const [xpRes, quizRes, mistakesResolvedRes] = await Promise.all([
+    supabase.from('xp_events').select('amount').gte('created_at', since),
+    supabase.from('quiz_attempts').select('id', { count: 'exact', head: true }).gte('created_at', since),
+    supabase
+      .from('mistakes')
+      .select('id', { count: 'exact', head: true })
+      .not('resolved_at', 'is', null)
+      .gte('resolved_at', since),
+  ]);
+  if (xpRes.error) throw xpRes.error;
+  if (quizRes.error) throw quizRes.error;
+  if (mistakesResolvedRes.error) throw mistakesResolvedRes.error;
+  return {
+    xpThisWeek: ((xpRes.data ?? []) as { amount: number }[]).reduce((sum, e) => sum + e.amount, 0),
+    quizzesThisWeek: quizRes.count ?? 0,
+    mistakesResolvedThisWeek: mistakesResolvedRes.count ?? 0,
+    weakestSubjectName: null,
+  };
+}
+
 /* ------------------------------------------------------------
    Bilgi kartları (flashcards) — yalnız 'done' konularda açılır (§4.8)
 ------------------------------------------------------------ */
@@ -641,4 +753,59 @@ export function checkFlashcardAnswer(input: string, acceptedAnswers: string[]): 
     const nk = normTr(k);
     return ni === nk || ni.includes(nk) || (ni.length >= 3 && nk.includes(ni) && ni.length >= nk.length * 0.6);
   });
+}
+
+/* ------------------------------------------------------------
+   Bildirimler (bkz. supabase/notifications.sql)
+------------------------------------------------------------ */
+
+/** Bildirimler ekranı listesi — en yeni önce. */
+export async function fetchNotifications(limit = 30): Promise<NotificationItem[]> {
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('id, title, body, route, created_at, read_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (
+    (data ?? []) as {
+      id: string;
+      title: string;
+      body: string;
+      route: string | null;
+      created_at: string;
+      read_at: string | null;
+    }[]
+  ).map((r) => ({
+    id: r.id,
+    title: r.title,
+    body: r.body,
+    route: r.route,
+    createdAt: r.created_at,
+    readAt: r.read_at,
+  }));
+}
+
+/** Sekme/Ev'deki kırmızı nokta için okunmamış bildirim sayısı. */
+export async function fetchUnreadNotificationCount(): Promise<number> {
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .is('read_at', null);
+  if (error) throw error;
+  return count ?? 0;
+}
+
+/** Bildirimler ekranı açılınca tüm okunmamışları okunmuş işaretler. */
+export async function markNotificationsRead(): Promise<void> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+    .is('read_at', null);
+  if (error) throw error;
 }

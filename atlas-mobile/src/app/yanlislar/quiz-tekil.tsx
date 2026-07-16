@@ -4,14 +4,15 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BadgeUnlockPopup } from '@/components/badges/badge-unlock-popup';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Confetti } from '@/components/ui/animated/confetti';
 import { MascotPop } from '@/components/ui/animated/mascot-pop';
 import { HeartsRow } from '@/components/ui/hearts-row';
 import { Pill } from '@/components/ui/pill';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
-import { fetchProfile, fetchQuestionById, finishQuiz } from '@/lib/queries';
-import type { FinishQuizResult, Question } from '@/lib/types';
+import { checkAndAwardBadges, fetchProfile, fetchQuestionById, finishQuiz } from '@/lib/queries';
+import type { Badge, FinishQuizResult, Question } from '@/lib/types';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 
@@ -34,6 +35,7 @@ export default function SingleQuizScreen() {
   const [answered, setAnswered] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<FinishQuizResult | null>(null);
+  const [unlockQueue, setUnlockQueue] = useState<Badge[]>([]);
 
   useEffect(() => {
     if (!questionId) return;
@@ -68,6 +70,11 @@ export default function SingleQuizScreen() {
       ]);
       setResult(r);
       setPhase('result');
+      checkAndAwardBadges()
+        .then((earned) => {
+          if (earned.length > 0) setUnlockQueue((q) => [...q, ...earned]);
+        })
+        .catch(() => {});
     } catch {
       setPhase('error');
     } finally {
@@ -128,6 +135,7 @@ export default function SingleQuizScreen() {
           </View>
         </ScrollView>
         </SafeAreaView>
+        <BadgeUnlockPopup badge={unlockQueue[0] ?? null} onClose={() => setUnlockQueue((q) => q.slice(1))} />
       </View>
     );
   }

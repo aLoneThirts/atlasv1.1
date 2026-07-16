@@ -48,6 +48,8 @@ export type Question = {
   /** weekly/single modda rozet için (join'le doldurulur) */
   subject_name?: string;
   subject_color?: string;
+  /** 1-3 — yanlışlar listesinde önceliklendirme için (join'le doldurulur) */
+  difficulty?: number;
 };
 
 export type TopicStatus = 'locked' | 'active' | 'done';
@@ -238,4 +240,40 @@ export type TercihAralikSonuc = {
   minScore: number | null;
   minRank: number | null;
   quota: number | null;
+};
+
+/** badges satırı + kazanılmış mı bilgisi (bkz. supabase/badges.sql). */
+export type Badge = {
+  id: string;
+  key: string;
+  title: string;
+  description: string;
+  emoji: string;
+  earned: boolean;
+  earnedAt: string | null;
+};
+
+/** mock_exams geçmişinden bir satır — Puan sekmesindeki trend grafiği için. */
+export type MockExamHistoryEntry = {
+  takenOn: string;
+  nets: MockExamNets;
+  totalNet: number;
+};
+
+/** Koç sekmesindeki "Bu Hafta" özet kartı. */
+export type WeeklySummary = {
+  xpThisWeek: number;
+  quizzesThisWeek: number;
+  mistakesResolvedThisWeek: number;
+  weakestSubjectName: string | null;
+};
+
+/** notifications satırı (bkz. supabase/notifications.sql). */
+export type NotificationItem = {
+  id: string;
+  title: string;
+  body: string;
+  route: string | null;
+  createdAt: string;
+  readAt: string | null;
 };

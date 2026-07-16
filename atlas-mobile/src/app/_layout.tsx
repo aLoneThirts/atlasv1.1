@@ -11,7 +11,8 @@ import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AuthProvider, useAuth } from '@/lib/auth-context';
 import { refreshExamCountdownNotification } from '@/lib/exam-countdown-notification';
 import { registerForPushNotifications } from '@/lib/push-notifications';
-import { fetchProfile } from '@/lib/queries';
+import { fetchProfile, fetchXpToday } from '@/lib/queries';
+import { refreshStreakReminder } from '@/lib/streak-reminder-notification';
 import { ThemeModeProvider } from '@/lib/theme-context';
 
 SplashScreen.preventAutoHideAsync();
@@ -23,14 +24,16 @@ function RootNavigator() {
   useEffect(() => {
     if (!inApp) return;
 
-    // Push token kaydı + sınav geri sayım bildirimi: uygulama açılışında VE her
-    // ön plana dönüşte tazelenir (geri sayım bildiriği tekrarlayan değil, tek
-    // seferlik — tazeliği en az günde bir açılışa bağlı, bkz. exam-countdown-notification.ts)
+    // Push token kaydı + sınav geri sayım bildirimi + "geri dön" hatırlatması:
+    // uygulama açılışında VE her ön plana dönüşte tazelenir (ikisi de tekrarlayan
+    // değil, tek seferlik — tazeliği en az günde bir açılışa bağlı, bkz.
+    // exam-countdown-notification.ts / streak-reminder-notification.ts)
     const refresh = async () => {
       registerForPushNotifications();
       try {
-        const profile = await fetchProfile();
+        const [profile, xpToday] = await Promise.all([fetchProfile(), fetchXpToday()]);
         refreshExamCountdownNotification(profile.exam_date);
+        refreshStreakReminder(xpToday > 0);
       } catch {
         /* sessizce geç — bir sonraki ön plana dönüşte tekrar denenir */
       }
@@ -56,6 +59,7 @@ function RootNavigator() {
           <Stack.Screen name="ayarlar" />
           <Stack.Screen name="premium" />
           <Stack.Screen name="tercih" />
+          <Stack.Screen name="bildirimler" />
           <Stack.Screen name="odeme" options={{ presentation: 'modal' }} />
         </Stack.Protected>
         <Stack.Protected guard={!!session && onboardingCompleted === false}>

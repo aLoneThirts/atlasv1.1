@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { BadgeUnlockPopup } from '@/components/badges/badge-unlock-popup';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Confetti } from '@/components/ui/animated/confetti';
 import { HeartsEmptyCard } from '@/components/hearts/hearts-empty-card';
@@ -12,8 +13,8 @@ import { HeartsRow } from '@/components/ui/hearts-row';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
 import { safeGoBack } from '@/lib/navigation';
-import { finishQuiz, fetchTopicQuestions, getHearts, loseHeart } from '@/lib/queries';
-import type { FinishQuizResult, Question, QuizAnswer } from '@/lib/types';
+import { checkAndAwardBadges, finishQuiz, fetchTopicQuestions, getHearts, loseHeart } from '@/lib/queries';
+import type { Badge, FinishQuizResult, Question, QuizAnswer } from '@/lib/types';
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E'];
 
@@ -43,6 +44,7 @@ export default function QuizScreen() {
   const [answers, setAnswers] = useState<QuizAnswer[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<FinishQuizResult | null>(null);
+  const [unlockQueue, setUnlockQueue] = useState<Badge[]>([]);
 
   useEffect(() => {
     if (!topicId) return;
@@ -101,6 +103,12 @@ export default function QuizScreen() {
       const r = await finishQuiz('topic', topicId!, answers);
       setResult(r);
       setPhase('result');
+      // Rozet kontrolü — kalıcı akışı bloklamasın diye sonucu beklemiyoruz
+      checkAndAwardBadges()
+        .then((earned) => {
+          if (earned.length > 0) setUnlockQueue((q) => [...q, ...earned]);
+        })
+        .catch(() => {});
     } catch {
       setPhase('error');
     } finally {
@@ -191,6 +199,7 @@ export default function QuizScreen() {
           </View>
         </ScrollView>
         </SafeAreaView>
+        <BadgeUnlockPopup badge={unlockQueue[0] ?? null} onClose={() => setUnlockQueue((q) => q.slice(1))} />
       </View>
     );
   }
