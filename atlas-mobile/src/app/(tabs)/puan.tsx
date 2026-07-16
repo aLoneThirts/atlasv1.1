@@ -1,22 +1,20 @@
-import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { NetTrendChart } from '@/components/score/net-trend-chart';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
 import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
 import {
   calculateAndSaveExamScore,
   fetchAvailableRankYears,
-  fetchMockExamHistory,
   fetchProgramStats,
   fetchScoreRankDistribution,
   searchYksPrograms,
 } from '@/lib/queries';
 import { useThemeMode } from '@/lib/theme-context';
-import type { MockExamHistoryEntry, YksProgramStat, YksProgramSummary } from '@/lib/types';
+import type { YksProgramStat, YksProgramSummary } from '@/lib/types';
 import { hesaplaNet, yuvarla, type NetMap } from '@shared/yks-calc';
 import { sonYillarSira, type RankPoint, type YearlyRankEstimate } from '@shared/rank-estimator';
 
@@ -100,15 +98,6 @@ export default function PuanScreen() {
   const [result, setResult] = useState<{ hamPuan: number; obp: number; yerlestirmePuani: number } | null>(null);
   const [siralar, setSiralar] = useState<YearlyRankEstimate[] | null>(null);
   const [siralarYukleniyor, setSiralarYukleniyor] = useState(false);
-  const [mockHistory, setMockHistory] = useState<MockExamHistoryEntry[]>([]);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchMockExamHistory()
-        .then(setMockHistory)
-        .catch(() => {});
-    }, []),
-  );
 
   const subjects = SUBJECTS_BY_SCORE_TYPE[scoreType];
 
@@ -186,11 +175,6 @@ export default function PuanScreen() {
             <Btn3D variant="orange" size="small" onPress={() => router.push('/tercih')}>
               Tercih Robotunu Aç
             </Btn3D>
-          </Card>
-
-          <Card style={styles.trendCard}>
-            <Text style={[styles.robotTitle, { color: surface.text }]}>📈 Deneme Net Takibi</Text>
-            <NetTrendChart entries={mockHistory} surface={surface} />
           </Card>
 
           <View style={styles.tabRow}>
@@ -505,7 +489,6 @@ const styles = StyleSheet.create({
   yearTextActive: { color: AtlasColors.white },
   card: { gap: 12 },
   robotCard: { gap: 8 },
-  trendCard: { gap: 8 },
   robotTitle: { fontSize: 15, fontFamily: AtlasFonts.heading },
   robotSub: { fontSize: 12, fontFamily: AtlasFonts.bodySemi, lineHeight: 17 },
   subjectRow: { gap: 6 },

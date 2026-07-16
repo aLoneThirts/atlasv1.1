@@ -16,7 +16,7 @@ import { useTabBadges } from '@/hooks/use-tab-badges';
 /** Sabit alt çubuğun yaklaşık yüksekliği — TabSlot'a paddingBottom olarak eklenir */
 const TAB_BAR_HEIGHT = 84;
 
-/** Atlas alt sekmeleri (web) — Ev, Harita, Koç, Yanlışlar, Puan */
+/** Atlas alt sekmeleri (web) — Ev, Harita, Koç, Yanlışlar, Puan, Deneme */
 export default function AppTabs() {
   const { mistakeCount } = useTabBadges();
 
@@ -40,6 +40,9 @@ export default function AppTabs() {
           </TabTrigger>
           <TabTrigger name="puan" href="/puan" asChild>
             <TabButton>🧮 Puan</TabButton>
+          </TabTrigger>
+          <TabTrigger name="deneme" href="/deneme" asChild>
+            <TabButton>📈 Deneme</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>
