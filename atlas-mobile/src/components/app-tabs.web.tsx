@@ -6,7 +6,7 @@ import {
   TabTriggerSlotProps,
   TabListProps,
 } from 'expo-router/ui';
-import { Pressable, View, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, View, StyleSheet } from 'react-native';
 
 import { ThemedText } from './themed-text';
 
@@ -72,10 +72,21 @@ export function TabButton({
   );
 }
 
+/**
+ * Sekme sayısı arttıkça (6 sekme) dar telefonlarda hepsi aynı anda sığmayabilir —
+ * önceden flexShrink ile "sıkıştırma" denendi ama bazı genişliklerde en sağdaki
+ * sekme (Deneme) görünmez oluyordu. Bunun yerine satır yatay kaydırılabilir:
+ * her sekme her zaman doğal boyutunda kalır, sığmadığında kaydırarak erişilir —
+ * hiçbir sekme hiçbir ekran genişliğinde tamamen kaybolmaz.
+ */
 export function CustomTabList(props: TabListProps) {
   return (
     <View {...props} style={styles.tabListContainer}>
-      <View style={styles.innerContainer}>{props.children}</View>
+      <View style={styles.innerContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.innerScrollContent}>
+          {props.children}
+        </ScrollView>
+      </View>
     </View>
   );
 }
@@ -95,24 +106,27 @@ const styles = StyleSheet.create({
   innerContainer: {
     backgroundColor: AtlasColors.white,
     paddingVertical: AtlasSpacing.two,
-    paddingHorizontal: AtlasSpacing.four,
     borderRadius: AtlasSpacing.five,
-    flexDirection: 'row',
-    alignItems: 'center',
     flexGrow: 1,
     flexShrink: 1,
     minWidth: 0,
-    gap: AtlasSpacing.half,
     maxWidth: AtlasLayout.maxContentWidth,
+    overflow: 'hidden',
     ...ledgeShadowWeb(AtlasColors.line, 3),
+  },
+  innerScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexGrow: 1,
+    justifyContent: 'center',
+    gap: AtlasSpacing.one,
+    paddingHorizontal: AtlasSpacing.three,
   },
   pressed: {
     opacity: 0.7,
   },
   tabButtonView: {
     position: 'relative',
-    flexShrink: 1,
-    minWidth: 0,
     paddingVertical: AtlasSpacing.one,
     paddingHorizontal: AtlasSpacing.two,
     borderRadius: AtlasSpacing.three,
