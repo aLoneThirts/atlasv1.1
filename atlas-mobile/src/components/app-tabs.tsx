@@ -10,23 +10,23 @@ export default function AppTabs() {
       indicatorColor={AtlasColors.greenLight}
       labelStyle={{ selected: { color: AtlasColors.greenDark } }}>
       <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Ev</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>🏠 Ev</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="harita">
-        <NativeTabs.Trigger.Label>Harita</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>🗺️ Harita</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="koc">
-        <NativeTabs.Trigger.Label>Koç</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>🤖 Koç</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="yanlislar">
-        <NativeTabs.Trigger.Label>Yanlışlar</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>⚠️ Yanlışlar</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="puan">
-        <NativeTabs.Trigger.Label>Puan</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>🧮 Puan</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );

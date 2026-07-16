@@ -50,7 +50,7 @@ function RootNavigator() {
   return (
     <>
       <AnimatedSplashOverlay />
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { flex: 1 } }}>
         <Stack.Protected guard={!!session && onboardingCompleted === true}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="ayarlar" />

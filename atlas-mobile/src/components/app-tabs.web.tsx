@@ -51,6 +51,7 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
         {isFocused && <View style={styles.activeNub} />}
         <ThemedText
           type="small"
+          numberOfLines={1}
           style={[styles.tabLabel, isFocused ? styles.tabLabelActive : styles.tabLabelInactive]}>
           {children}
         </ThemedText>
@@ -62,10 +63,7 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
 export function CustomTabList(props: TabListProps) {
   return (
     <View {...props} style={styles.tabListContainer}>
-      <View style={styles.innerContainer}>
-        <ThemedText style={styles.brandText}>⚔️ Atlas</ThemedText>
-        {props.children}
-      </View>
+      <View style={styles.innerContainer}>{props.children}</View>
     </View>
   );
 }
@@ -75,36 +73,36 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     width: '100%',
+    maxWidth: '100%',
     padding: AtlasSpacing.three,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
+    overflow: 'hidden',
   },
   innerContainer: {
     backgroundColor: AtlasColors.white,
     paddingVertical: AtlasSpacing.two,
-    paddingHorizontal: AtlasSpacing.five,
+    paddingHorizontal: AtlasSpacing.four,
     borderRadius: AtlasSpacing.five,
     flexDirection: 'row',
     alignItems: 'center',
     flexGrow: 1,
-    gap: AtlasSpacing.two,
+    flexShrink: 1,
+    minWidth: 0,
+    gap: AtlasSpacing.half,
     maxWidth: AtlasLayout.maxContentWidth,
     ...ledgeShadowWeb(AtlasColors.line, 3),
-  },
-  brandText: {
-    marginRight: 'auto',
-    fontFamily: AtlasFonts.heading,
-    fontSize: 14,
-    color: AtlasColors.inkStrong,
   },
   pressed: {
     opacity: 0.7,
   },
   tabButtonView: {
     position: 'relative',
+    flexShrink: 1,
+    minWidth: 0,
     paddingVertical: AtlasSpacing.one,
-    paddingHorizontal: AtlasSpacing.three,
+    paddingHorizontal: AtlasSpacing.two,
     borderRadius: AtlasSpacing.three,
     alignItems: 'center',
   },
