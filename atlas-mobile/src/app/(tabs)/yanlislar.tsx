@@ -7,8 +7,9 @@ import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
 import { Pill } from '@/components/ui/pill';
 import { GlowBanner } from '@/components/ui/animated/glow-banner';
-import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
+import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
 import { fetchOpenMistakes, fetchProfile } from '@/lib/queries';
+import { useThemeMode } from '@/lib/theme-context';
 import type { MistakeItem } from '@/lib/types';
 
 type ExamType = 'tyt' | 'ayt';
@@ -34,6 +35,8 @@ function relativeTr(iso: string): string {
 
 export default function MistakesScreen() {
   const router = useRouter();
+  const { mode } = useThemeMode();
+  const surface = AtlasSurface[mode];
   const [mistakes, setMistakes] = useState<MistakeItem[]>([]);
   const [filter, setFilter] = useState<string>(ALL);
   const [refreshing, setRefreshing] = useState(false);
@@ -86,13 +89,13 @@ export default function MistakesScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: surface.bg }]}>
       <SafeAreaView style={styles.safe}>
         <ScrollView
           contentContainerStyle={styles.scroll}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
           <View style={styles.header}>
-            <Text style={styles.title}>⚠️ Yanlışlarım</Text>
+            <Text style={[styles.title, { color: surface.text }]}>⚠️ Yanlışlarım</Text>
             <Pill color={AtlasColors.redLight} textColor={AtlasColors.redDark}>
               {`${trackMistakes.length} soru`}
             </Pill>
@@ -104,8 +107,17 @@ export default function MistakesScreen() {
                 <Pressable
                   key={t}
                   onPress={() => onPickExamType(t)}
-                  style={[styles.trackPill, examType === t && styles.trackPillActive]}>
-                  <Text style={[styles.trackPillText, examType === t && styles.trackPillTextActive]}>
+                  style={[
+                    styles.trackPill,
+                    { backgroundColor: surface.card, borderColor: surface.cardBorder },
+                    examType === t && styles.trackPillActive,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.trackPillText,
+                      { color: surface.text },
+                      examType === t && styles.trackPillTextActive,
+                    ]}>
                     {t.toUpperCase()}
                   </Text>
                 </Pressable>
@@ -133,8 +145,8 @@ export default function MistakesScreen() {
           {trackMistakes.length === 0 ? (
             <View style={styles.emptyBox}>
               <Text style={styles.emptyEmoji}>✅</Text>
-              <Text style={styles.emptyTitle}>Hiç yanlışın yok!</Text>
-              <Text style={styles.emptySub}>Harika gidiyorsun 💪</Text>
+              <Text style={[styles.emptyTitle, { color: surface.text }]}>Hiç yanlışın yok!</Text>
+              <Text style={[styles.emptySub, { color: surface.textSecondary }]}>Harika gidiyorsun 💪</Text>
             </View>
           ) : (
             <>
@@ -142,7 +154,7 @@ export default function MistakesScreen() {
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.chips}>
-                <Chip label="Tümü" active={filter === ALL} onPress={() => setFilter(ALL)} />
+                <Chip label="Tümü" active={filter === ALL} onPress={() => setFilter(ALL)} surface={surface} />
                 {subjects.map((s) => (
                   <Chip
                     key={s.name}
@@ -150,17 +162,19 @@ export default function MistakesScreen() {
                     color={s.color}
                     active={filter === s.name}
                     onPress={() => setFilter(s.name)}
+                    surface={surface}
                   />
                 ))}
               </ScrollView>
 
               {filtered.length === 0 ? (
-                <Text style={styles.emptyInline}>Bu derste yanlışın yok 🎉</Text>
+                <Text style={[styles.emptyInline, { color: surface.textSecondary }]}>Bu derste yanlışın yok 🎉</Text>
               ) : (
                 filtered.map((item) => (
                   <MistakeCard
                     key={item.id}
                     item={item}
+                    surface={surface}
                     onSolve={() =>
                       router.push({
                         pathname: '/yanlislar/quiz-tekil',
@@ -178,45 +192,50 @@ export default function MistakesScreen() {
   );
 }
 
+type Surface = (typeof AtlasSurface)[keyof typeof AtlasSurface];
+
 function Chip({
   label,
   active,
   color,
   onPress,
+  surface,
 }: {
   label: string;
   active: boolean;
   color?: string;
   onPress: () => void;
+  surface: Surface;
 }) {
   return (
     <Pressable
       onPress={onPress}
       style={[
         styles.chip,
+        { backgroundColor: surface.card, borderColor: surface.cardBorder },
         active && { backgroundColor: color ?? AtlasColors.inkStrong, borderColor: color ?? AtlasColors.inkStrong },
       ]}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+      <Text style={[styles.chipText, { color: surface.text }, active && styles.chipTextActive]}>{label}</Text>
     </Pressable>
   );
 }
 
-function MistakeCard({ item, onSolve }: { item: MistakeItem; onSolve: () => void }) {
+function MistakeCard({ item, onSolve, surface }: { item: MistakeItem; onSolve: () => void; surface: Surface }) {
   return (
     <Card style={styles.card}>
       <View style={styles.cardHead}>
         <Pill color={item.subjectColor} textColor={AtlasColors.white}>
           {item.subjectName}
         </Pill>
-        <Text style={styles.cardTime}>{relativeTr(item.created_at)}</Text>
+        <Text style={[styles.cardTime, { color: surface.textSecondary }]}>{relativeTr(item.created_at)}</Text>
       </View>
-      <Text style={styles.cardTopic}>{item.topicTitle}</Text>
-      <Text style={styles.cardPrompt} numberOfLines={2}>
+      <Text style={[styles.cardTopic, { color: surface.text }]}>{item.topicTitle}</Text>
+      <Text style={[styles.cardPrompt, { color: surface.text }]} numberOfLines={2}>
         {item.question.prompt}
       </Text>
 
       {/* Cevaplar burada gösterilmez — "Çöz" ile aynı soruyu tekrar çözecek, spoiler olmasın */}
-      <Text style={styles.retryHint}>🔁 Bu soruyu tekrar çözmeye hazır</Text>
+      <Text style={[styles.retryHint, { color: surface.textSecondary }]}>🔁 Bu soruyu tekrar çözmeye hazır</Text>
 
       <View style={styles.cardFoot}>
         <Btn3D variant="green" size="small" onPress={onSolve}>
