@@ -423,7 +423,10 @@ export default function CoachScreen() {
           <Text style={styles.denemeCaret}>{denemeOpen ? '▲' : '▼'}</Text>
         </Pressable>
         {denemeOpen && (
-          <View style={styles.denemeBody}>
+          <ScrollView
+            style={styles.denemeBodyScroll}
+            contentContainerStyle={styles.denemeBody}
+            keyboardShouldPersistTaps="handled">
             <View style={styles.denemeGrid}>
               {DENEME_FIELDS.map((f) => (
                 <View key={f.key} style={styles.denemeField}>
@@ -449,7 +452,7 @@ export default function CoachScreen() {
             <Btn3D variant="yellow" size="small" onPress={onSaveDeneme} disabled={sending}>
               Kaydet &amp; Koça Gönder
             </Btn3D>
-          </View>
+          </ScrollView>
         )}
       </View>
 
@@ -613,6 +616,7 @@ const styles = StyleSheet.create({
   },
   denemeHeadText: { flex: 1, color: '#ffd95e', fontSize: 13.5, fontFamily: AtlasFonts.headingBold },
   denemeCaret: { color: '#ffd95e', fontSize: 11 },
+  denemeBodyScroll: { maxHeight: 320 },
   denemeBody: { paddingHorizontal: 15, paddingBottom: 15, gap: 10 },
   denemeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   denemeField: { flexBasis: '47%', flexGrow: 1 },
