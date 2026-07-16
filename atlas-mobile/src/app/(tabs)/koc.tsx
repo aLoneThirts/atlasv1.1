@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { WeakTopicsPicker } from '@/components/koc/weak-topics-picker';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Pill } from '@/components/ui/pill';
 import { TypingDots } from '@/components/ui/animated/typing-dots';
@@ -48,7 +49,8 @@ type DenemeKey = (typeof DENEME_FIELDS)[number]['key'];
 type ChatItem =
   | { kind: 'msg'; id: string; role: 'user' | 'coach'; content: string }
   | { kind: 'typing'; id: string }
-  | { kind: 'system'; id: string; content: string };
+  | { kind: 'system'; id: string; content: string }
+  | { kind: 'practice-cta'; id: string; topicIds: string[] };
 
 let counter = 0;
 function uid(): string {
@@ -86,6 +88,7 @@ export default function CoachScreen() {
     fen: '',
   });
   const [denemeWarn, setDenemeWarn] = useState(false);
+  const [weakTopics, setWeakTopics] = useState<Set<string>>(new Set());
 
   const scrollRef = useRef<ScrollView>(null);
   const loadedRef = useRef(false);
@@ -232,12 +235,15 @@ export default function CoachScreen() {
     }
     const totalStr = Number.isInteger(total) ? String(total) : total.toFixed(1);
 
+    const weakTopicIds = Array.from(weakTopics);
+
     setDenemeWarn(false);
     setDenemeOpen(false);
     setDenemeVals({ turkce: '', tarih: '', cografya: '', felsefe: '', fen: '' });
+    setWeakTopics(new Set());
 
     try {
-      await saveMockExam(nets);
+      await saveMockExam(nets, weakTopicIds);
     } catch {
       setItems((prev) => [
         ...prev,
@@ -250,7 +256,23 @@ export default function CoachScreen() {
       `Deneme sonucumu girdim, toplam ${totalStr} net.`,
       `📝 Deneme sonucumu girdim — toplam ${totalStr} net`,
     );
-  }, [denemeVals, ask]);
+
+    if (weakTopicIds.length > 0) {
+      setItems((prev) => [
+        ...prev,
+        { kind: 'practice-cta', id: uid(), topicIds: weakTopicIds },
+      ]);
+    }
+  }, [denemeVals, weakTopics, ask]);
+
+  const onToggleWeakTopic = useCallback((topicId: string) => {
+    setWeakTopics((prev) => {
+      const next = new Set(prev);
+      if (next.has(topicId)) next.delete(topicId);
+      else next.add(topicId);
+      return next;
+    });
+  }, []);
 
   /* ----------------------------- Yükleniyor ----------------------------- */
   if (loading) {
@@ -350,6 +372,26 @@ export default function CoachScreen() {
               </View>
             );
           }
+          if (item.kind === 'practice-cta') {
+            return (
+              <View key={item.id} style={styles.practiceCtaWrap}>
+                <Text style={styles.practiceCtaText}>
+                  🎯 Bu denemede zorlandığın {item.topicIds.length} konudan pratik quiz yapabilirsin.
+                </Text>
+                <Btn3D
+                  variant="yellow"
+                  size="small"
+                  onPress={() =>
+                    router.push({
+                      pathname: '/deneme/quiz-hedef',
+                      params: { topicIds: item.topicIds.join(',') },
+                    } as never)
+                  }>
+                  Pratik Yap
+                </Btn3D>
+              </View>
+            );
+          }
           const isCoach = item.kind === 'typing' || item.role === 'coach';
           return (
             <View
@@ -399,6 +441,10 @@ export default function CoachScreen() {
                 </View>
               ))}
             </View>
+
+            <Text style={styles.weakTopicsLabel}>Zayıf Olduğun Konular (opsiyonel)</Text>
+            <WeakTopicsPicker selected={weakTopics} onToggle={onToggleWeakTopic} />
+
             {denemeWarn && <Text style={styles.denemeWarn}>Önce netlerini gir 📝</Text>}
             <Btn3D variant="yellow" size="small" onPress={onSaveDeneme} disabled={sending}>
               Kaydet &amp; Koça Gönder
@@ -588,6 +634,26 @@ const styles = StyleSheet.create({
     fontFamily: AtlasFonts.bodyBold,
   },
   denemeWarn: { color: '#ffc36e', fontSize: 12, fontFamily: AtlasFonts.bodyBold },
+  weakTopicsLabel: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 10,
+    fontFamily: AtlasFonts.bodyBold,
+    marginTop: 2,
+  },
+
+  /* Pratik quiz CTA (deneme sonrası) */
+  practiceCtaWrap: {
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 4,
+    backgroundColor: 'rgba(255,200,0,0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,200,0,0.3)',
+    borderRadius: AtlasRadius.bubble,
+    padding: 14,
+  },
+  practiceCtaText: { color: '#ffd95e', fontSize: 12.5, fontFamily: AtlasFonts.bodySemi, textAlign: 'center' },
 
   /* Suggestions */
   suggScroll: { flexGrow: 0, flexShrink: 0 },
