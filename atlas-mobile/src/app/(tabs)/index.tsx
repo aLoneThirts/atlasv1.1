@@ -5,9 +5,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { formatCountdown } from '@/components/hearts/hearts-empty-card';
-import { BadgeGrid } from '@/components/badges/badge-grid';
 import { BadgeUnlockPopup } from '@/components/badges/badge-unlock-popup';
-import { StreakCalendar } from '@/components/home/streak-calendar';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
 import { HeartsRow } from '@/components/ui/hearts-row';
@@ -21,7 +19,6 @@ import {
   fetchContinueTarget,
   fetchOpenMistakeCount,
   fetchProfile,
-  fetchStudyDays,
   fetchUnreadNotificationCount,
   fetchXpToday,
   getHearts,
@@ -47,7 +44,6 @@ export default function HomeScreen() {
   const [mistakeCount, setMistakeCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [studyDays, setStudyDays] = useState<string[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [unlockQueue, setUnlockQueue] = useState<Badge[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -56,12 +52,11 @@ export default function HomeScreen() {
     try {
       setError(null);
       const p = await fetchProfile();
-      const [xp, t, mc, h, days, unread] = await Promise.all([
+      const [xp, t, mc, h, unread] = await Promise.all([
         fetchXpToday(),
         fetchContinueTarget(p.is_premium),
         fetchOpenMistakeCount(),
         getHearts(),
-        fetchStudyDays(),
         fetchUnreadNotificationCount(),
       ]);
       setProfile(p);
@@ -69,7 +64,6 @@ export default function HomeScreen() {
       setTarget(t);
       setMistakeCount(mc);
       setHearts(h);
-      setStudyDays(days);
       setUnreadCount(unread);
 
       // Rozet kontrolü — güncel istatistikler yeni bir rozetin eşiğini geçtiyse
@@ -195,18 +189,19 @@ export default function HomeScreen() {
             </Text>
           </Card>
 
-          <Card style={styles.calendarCard}>
-            <Text style={[styles.goalTitle, { color: surface.text }]}>Çalışma Takvimi</Text>
-            <StreakCalendar studyDays={studyDays} surface={surface} />
-          </Card>
-
           {badges.length > 0 && (
-            <Card style={styles.badgesCard}>
-              <Text style={[styles.goalTitle, { color: surface.text }]}>
-                🏅 Rozetlerim ({badges.filter((b) => b.earned).length}/{badges.length})
-              </Text>
-              <BadgeGrid badges={badges} surface={surface} />
-            </Card>
+            <Pressable
+              style={[styles.badgeTeaser, { backgroundColor: surface.card, borderColor: surface.cardBorder }]}
+              onPress={() => router.push('/rozetler')}>
+              <Text style={styles.badgeTeaserEmoji}>🏅</Text>
+              <View style={styles.mapText}>
+                <Text style={[styles.badgeTeaserTitle, { color: surface.text }]}>
+                  Rozetlerim ({badges.filter((b) => b.earned).length}/{badges.length})
+                </Text>
+                <Text style={[styles.badgeTeaserSub, { color: surface.textSecondary }]}>Tümünü görmek için dokun</Text>
+              </View>
+              <Text style={[styles.mapArrow, { color: surface.text }]}>→</Text>
+            </Pressable>
           )}
 
           {target ? (
@@ -333,8 +328,18 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 10, fontFamily: AtlasFonts.bodyBold, color: AtlasColors.gray },
   heartsCountdown: { fontSize: 9, fontFamily: AtlasFonts.bodySemi, marginTop: -2 },
   goalCard: { gap: 9, marginBottom: 12 },
-  calendarCard: { gap: 10, marginBottom: 12 },
-  badgesCard: { gap: 10, marginBottom: 12 },
+  badgeTeaser: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1.5,
+    borderRadius: AtlasRadius.card,
+    padding: 14,
+    marginBottom: 12,
+  },
+  badgeTeaserEmoji: { fontSize: 28 },
+  badgeTeaserTitle: { fontSize: 14, fontFamily: AtlasFonts.heading },
+  badgeTeaserSub: { fontSize: 11.5, marginTop: 2, fontFamily: AtlasFonts.bodySemi },
   goalHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   goalTitle: { fontSize: 14, fontFamily: AtlasFonts.heading, color: AtlasColors.inkStrong },
   goalPct: { fontSize: 12.5, fontFamily: AtlasFonts.bodyBold, color: AtlasColors.greenDark },

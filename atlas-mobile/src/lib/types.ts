@@ -50,6 +50,9 @@ export type Question = {
   subject_color?: string;
   /** 1-3 — yanlışlar listesinde önceliklendirme için (join'le doldurulur) */
   difficulty?: number;
+  /** hedefli pratik quiz sonuç ekranında "hangi konu" gruplaması için (join'le doldurulur) */
+  topic_title?: string;
+  subject_id?: string;
 };
 
 export type TopicStatus = 'locked' | 'active' | 'done';
@@ -74,7 +77,7 @@ export type SubjectSummary = Subject & {
   doneTopics: number;
 };
 
-export type QuizMode = 'topic' | 'weekly' | 'single' | 'flashcards';
+export type QuizMode = 'topic' | 'weekly' | 'single' | 'flashcards' | 'weak_topics';
 
 export type QuizAnswer = {
   question_id: string;

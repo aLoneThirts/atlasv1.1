@@ -323,23 +323,6 @@ export async function fetchXpToday(): Promise<number> {
   return (data ?? []).reduce((sum, e) => sum + (e.amount as number), 0);
 }
 
-/**
- * Son `daysBack` gün içinde en az 1 xp_events satırı olan günler (Europe/Istanbul,
- * YYYY-MM-DD) — Ev ekranı seri takvimi için. Yeni tablo gerekmez, var olan
- * xp_events'ten türetilir.
- */
-export async function fetchStudyDays(daysBack = 35): Promise<string[]> {
-  const since = new Date(Date.now() - daysBack * 24 * HOUR).toISOString();
-  const { data, error } = await supabase.from('xp_events').select('created_at').gte('created_at', since);
-  if (error) throw error;
-  const days = new Set<string>();
-  for (const row of (data ?? []) as { created_at: string }[]) {
-    const tr = new Date(new Date(row.created_at).getTime() + 3 * HOUR);
-    days.add(tr.toISOString().slice(0, 10));
-  }
-  return [...days].sort();
-}
-
 /* ------------------------------------------------------------
    Rozetler (bkz. supabase/badges.sql)
 ------------------------------------------------------------ */
@@ -554,6 +537,33 @@ export async function fetchQuestionsByIds(ids: string[]): Promise<Question[]> {
 }
 
 /**
+ * Bir dizi konudan rastgele soru çek — deneme sonrası "zayıf konular" hedefli
+ * pratik quiz'i için (bkz. app/deneme/quiz-hedef.tsx). fetchTopicQuestions'ın
+ * tek-konu sürümünün çoklu-konu genellemesi; sonuç ekranında "hangi ders/konu"
+ * gruplaması yapılabilsin diye subject_id/topic_title de taşınır.
+ */
+export async function fetchQuestionsByTopics(topicIds: string[], limit = 10): Promise<Question[]> {
+  if (topicIds.length === 0) return [];
+  const { data, error } = await supabase.from('questions').select(QUESTION_JOIN).in('topic_id', topicIds);
+  if (error) throw error;
+  const rows = (data ?? []) as unknown as JoinedQuestionRow[];
+  const mapped: Question[] = rows.map((q) => ({
+    id: q.id,
+    topic_id: q.topic_id,
+    prompt: q.prompt,
+    options: q.options,
+    correct_index: q.correct_index,
+    explanation: q.explanation,
+    subject_name: q.topics.units.subjects.name,
+    subject_color: q.topics.units.subjects.color,
+    difficulty: q.difficulty,
+    topic_title: q.topics.title,
+    subject_id: q.topics.units.subjects.id,
+  }));
+  return shuffle(mapped).slice(0, limit);
+}
+
+/**
  * Quiz bitişi — TEK atomik RPC (BACKEND.md §6.1).
  * Can/XP/yıldız/streak/yanlış havuzu sunucuda işlenir.
  */
@@ -682,12 +692,14 @@ export async function sendCoachMessage(message: string): Promise<string> {
 }
 
 /** Deneme sonucu kaydı — koç bunu bir sonraki mesajında bağlam olarak görür (BACKEND.md §6.3). */
-export async function saveMockExam(nets: MockExamNets, notes?: string): Promise<void> {
+export async function saveMockExam(nets: MockExamNets, weakTopicIds: string[] = [], notes?: string): Promise<void> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) throw new Error('Oturum yok.');
-  const { error } = await supabase.from('mock_exams').insert({ user_id: user.id, nets, notes: notes ?? null });
+  const { error } = await supabase
+    .from('mock_exams')
+    .insert({ user_id: user.id, nets, weak_topic_ids: weakTopicIds, notes: notes ?? null });
   if (error) throw error;
 }
 

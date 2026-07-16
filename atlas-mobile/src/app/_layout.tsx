@@ -60,6 +60,7 @@ function RootNavigator() {
           <Stack.Screen name="premium" />
           <Stack.Screen name="tercih" />
           <Stack.Screen name="bildirimler" />
+          <Stack.Screen name="rozetler" />
           <Stack.Screen name="odeme" options={{ presentation: 'modal' }} />
         </Stack.Protected>
         <Stack.Protected guard={!!session && onboardingCompleted === false}>
