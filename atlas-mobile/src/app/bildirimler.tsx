@@ -67,6 +67,7 @@ export default function BildirimlerScreen() {
         </View>
 
         <ScrollView
+          style={styles.scrollArea}
           contentContainerStyle={styles.scroll}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
           {items !== null &&
@@ -118,6 +119,7 @@ const styles = StyleSheet.create({
   back: { fontSize: 15, fontFamily: AtlasFonts.bodyBold },
   title: { fontSize: 17, fontFamily: AtlasFonts.heading },
   backSpacer: { width: 40 },
+  scrollArea: { flex: 1 },
   scroll: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 30, gap: 10 },
   row: {
     flexDirection: 'row',

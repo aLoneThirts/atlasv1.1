@@ -37,7 +37,7 @@ export default function RozetlerScreen() {
           <View style={styles.backSpacer} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scroll}>
           <Text style={[styles.summary, { color: surface.textSecondary }]}>
             {earnedCount}/{badges.length} rozet kazanıldı
           </Text>
@@ -61,6 +61,7 @@ const styles = StyleSheet.create({
   back: { fontSize: 15, fontFamily: AtlasFonts.bodyBold },
   title: { fontSize: 17, fontFamily: AtlasFonts.heading },
   backSpacer: { width: 40 },
+  scrollArea: { flex: 1 },
   scroll: { paddingHorizontal: 18, paddingTop: 8, paddingBottom: 30, gap: 12 },
   summary: { fontSize: 13, fontFamily: AtlasFonts.bodySemi, marginBottom: 4 },
 });

@@ -57,6 +57,7 @@ export default function DenemeScreen() {
         </View>
 
         <ScrollView
+          style={styles.scrollArea}
           contentContainerStyle={styles.scroll}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
           <Card style={styles.chartCard}>
@@ -94,6 +95,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   header: { paddingHorizontal: 18, paddingVertical: 12 },
   title: { fontSize: 22, fontFamily: AtlasFonts.heading },
+  scrollArea: { flex: 1 },
   scroll: { paddingHorizontal: 18, paddingBottom: 30, gap: 12 },
   chartCard: { gap: 8 },
   sectionTitle: { fontSize: 15, fontFamily: AtlasFonts.heading, marginTop: 4 },
