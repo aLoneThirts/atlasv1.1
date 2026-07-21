@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WeakTopicsPicker } from '@/components/koc/weak-topics-picker';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Interactive } from '@/components/ui/interactive';
+import { MarkdownText } from '@/components/ui/markdown-text';
 import { Pill } from '@/components/ui/pill';
 import { TypingDots } from '@/components/ui/animated/typing-dots';
 import { AtlasColors, AtlasFonts, AtlasLayout, AtlasRadius } from '@/constants/atlas-theme';
@@ -493,7 +494,16 @@ export default function CoachScreen() {
                       <Image source={COACH_AVATAR} style={styles.msgAvaImg} contentFit="cover" />
                     </View>
                     <View style={styles.coachTextWrap}>
-                      {item.kind === 'typing' ? <TypingDots /> : <Text style={styles.coachText}>{item.content}</Text>}
+                      {item.kind === 'typing' ? (
+                        <TypingDots />
+                      ) : (
+                        <MarkdownText
+                          content={item.content}
+                          textColor="rgba(255,255,255,0.92)"
+                          mutedColor="rgba(255,255,255,0.5)"
+                          headingColor={AtlasColors.white}
+                        />
+                      )}
                     </View>
                   </View>
                 );
@@ -689,7 +699,6 @@ const styles = StyleSheet.create({
   // Asistan: balonsuz, avatar + geniş düz metin (ChatGPT paragraf kalıbı)
   coachRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
   coachTextWrap: { flex: 1, paddingTop: 4 },
-  coachText: { color: 'rgba(255,255,255,0.92)', fontSize: 14.5, lineHeight: 21.5, fontFamily: AtlasFonts.body },
   msgAva: {
     width: 26,
     height: 26,
