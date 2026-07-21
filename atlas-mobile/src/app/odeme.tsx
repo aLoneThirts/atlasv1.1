@@ -17,6 +17,11 @@ const ERROR_MESSAGES: Record<string, string> = {
   payment_gateway_error: 'Ödeme sağlayıcısına ulaşılamadı, tekrar dene.',
   auth_required: 'Oturumun sona ermiş, tekrar giriş yap.',
   profile_not_found: 'Profil bulunamadı, tekrar giriş yapmayı dene.',
+  // Ödeme iyzico'da BAŞARILI oldu ama ürünü hesaba işleme adımı sunucuda
+  // başarısız oldu (bkz. supabase/functions/iyzico-pay) — kart TEKRAR
+  // veznenmesin diye "tekrar dene" DENMEMELİ, bu tamamen farklı bir durum.
+  grant_failed:
+    'Ödemen alındı ama ürün hesabına henüz işlenmedi — tekrar ödeme yapma, destekle iletişime geç, kısa sürede düzeltilecek.',
 };
 
 const SUCCESS_COPY: Record<Product, { emoji: string; title: string; body: string }> = {

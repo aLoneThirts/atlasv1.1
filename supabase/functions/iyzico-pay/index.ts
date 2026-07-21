@@ -212,32 +212,64 @@ Deno.serve(async (req) => {
 
   const success = iyz.status === 'success';
 
-  await service.from('payments').insert({
-    user_id: userId,
-    product,
-    amount,
-    currency: 'TRY',
-    status: success ? 'success' : 'failed',
-    iyzico_payment_id: (iyz.paymentId as string) ?? null,
-    conversation_id: conversationId,
-    error_message: success ? null : ((iyz.errorMessage as string) ?? 'unknown_error'),
-    raw_response: iyz,
-  });
+  const { data: paymentRow } = await service
+    .from('payments')
+    .insert({
+      user_id: userId,
+      product,
+      amount,
+      currency: 'TRY',
+      status: success ? 'success' : 'failed',
+      iyzico_payment_id: (iyz.paymentId as string) ?? null,
+      conversation_id: conversationId,
+      error_message: success ? null : ((iyz.errorMessage as string) ?? 'unknown_error'),
+      raw_response: iyz,
+    })
+    .select('id')
+    .single();
 
   if (!success) {
     return json({ ok: false, error: (iyz.errorMessage as string) ?? 'payment_failed' }, 402);
   }
 
+  // ⚠️ iyzico ödemesi burada ZATEN tahsil edildi (para gerçekten çekildi) —
+  // aşağıdaki profil güncellemesi ayrı bir adım ve önceden hatası hiç
+  // kontrol edilmiyordu: başarısız olursa müşteri parayı ödeyip ürünü hiç
+  // almazdı, `payments` satırı ise "success" görünmeye devam ederdi (destek
+  // ekibi "ödeme yaptım ürün gelmedi" şikayetinde önce payments'a bakıyor,
+  // orada her şey normal görünürdü). Şimdi hata hem loglanıyor (Supabase
+  // Dashboard > Edge Functions > Logs) hem de payments satırına yazılıyor.
+  let grantError: string | null = null;
   if (product === 'hearts_refill') {
-    await service.from('profiles').update({ hearts: 5, hearts_updated_at: new Date().toISOString() }).eq('id', userId);
+    const { error: e } = await service
+      .from('profiles')
+      .update({ hearts: 5, hearts_updated_at: new Date().toISOString() })
+      .eq('id', userId);
+    grantError = e?.message ?? null;
   } else if (product === 'ads_removed') {
-    await service.from('profiles').update({ ads_removed: true }).eq('id', userId);
+    const { error: e } = await service.from('profiles').update({ ads_removed: true }).eq('id', userId);
+    grantError = e?.message ?? null;
   } else {
     const days = product === 'premium_monthly' ? 30 : 365;
     const currentExpiry = profile.premium_expires_at ? new Date(profile.premium_expires_at) : null;
     const base = currentExpiry && currentExpiry > new Date() ? currentExpiry : new Date();
     const newExpiry = new Date(base.getTime() + days * 86_400_000);
-    await service.from('profiles').update({ is_premium: true, premium_expires_at: newExpiry.toISOString() }).eq('id', userId);
+    const { error: e } = await service
+      .from('profiles')
+      .update({ is_premium: true, premium_expires_at: newExpiry.toISOString() })
+      .eq('id', userId);
+    grantError = e?.message ?? null;
+  }
+
+  if (grantError) {
+    console.error(`iyzico-pay: ödeme başarılı ama ürün verilemedi (user=${userId}, product=${product}):`, grantError);
+    if (paymentRow?.id) {
+      await service
+        .from('payments')
+        .update({ error_message: `PAID_BUT_GRANT_FAILED: ${grantError}` })
+        .eq('id', paymentRow.id);
+    }
+    return json({ ok: false, error: 'grant_failed' }, 500);
   }
 
   return json({ ok: true, product });
