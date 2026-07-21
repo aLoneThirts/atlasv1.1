@@ -4,6 +4,15 @@ body,
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  /* height zinciri KRİTİK: bu olmadan hiçbir alt öğenin height:'100%'/flex:1
+     zinciri gerçek bir sınıra oturmuyor — TabSlot'un height:'100%'ü hiçbir
+     zaman çözülmüyor, tüm uygulama içeriğe göre büyüyor ve sayfanın kendisi
+     kayıyor (Koç ekranındaki "sohbet kayboluyor" bug'ı buradan geliyordu,
+     bkz. koc.tsx pageColumn notu). overflow-x hâlâ hidden ama overflow-y
+     bilinçli olarak dokunulmadı (varsayılan/auto) — diğer sekmeler hâlâ
+     sayfa kaydırmasına güveniyor olabilir, onu kesmek ayrı bir doğrulama ister. */
+  height: 100%;
+  margin: 0;
 }
 
 :root {

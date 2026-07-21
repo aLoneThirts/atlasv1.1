@@ -1,10 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CardForm } from '@/components/payment/card-form';
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasFonts, AtlasGradients, AtlasLayout } from '@/constants/atlas-theme';
 import { safeGoBack } from '@/lib/navigation';
 import { buyAdRemoval, buyHeartRefill, buyPremium, PRODUCT_PRICES, type CardInput, type Product } from '@/lib/purchases';
@@ -64,9 +65,9 @@ export default function OdemeScreen() {
     <LinearGradient colors={AtlasGradients.onboarding} style={styles.container}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Pressable onPress={() => safeGoBack(router)} hitSlop={10}>
+          <Interactive onPress={() => safeGoBack(router)} hitSlop={10}>
             <Text style={styles.close}>✕</Text>
-          </Pressable>
+          </Interactive>
           <Text style={styles.title}>Ödeme</Text>
           <View style={styles.headerSpacer} />
         </View>
@@ -75,9 +76,9 @@ export default function OdemeScreen() {
             <Text style={styles.successEmoji}>{successInfo.emoji}</Text>
             <Text style={styles.successTitle}>{successInfo.title}</Text>
             <Text style={styles.successBody}>{successInfo.body}</Text>
-            <Pressable style={styles.successBtn} onPress={() => safeGoBack(router)}>
+            <Interactive style={styles.successBtn} onPress={() => safeGoBack(router)}>
               <Text style={styles.successBtnText}>Tamam</Text>
-            </Pressable>
+            </Interactive>
           </ScrollView>
         ) : (
           <ScrollView contentContainerStyle={styles.scroll}>

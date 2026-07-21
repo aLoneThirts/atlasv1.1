@@ -1,11 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { formatCountdown } from '@/components/hearts/hearts-empty-card';
 import { GlowHalo } from '@/components/ui/glow-halo';
+import { Interactive } from '@/components/ui/interactive';
 import { HeartsRow } from '@/components/ui/hearts-row';
 import { PulsingBadge } from '@/components/ui/animated/pulsing-badge';
 import { ProgressBar } from '@/components/ui/progress-bar';
@@ -88,9 +89,9 @@ export default function CastleScreen() {
       <SafeAreaView style={styles.safe}>
         <LinearGradient colors={[headColor, headColorDark]} start={{ x: 0, y: 0 }} end={{ x: 0.3, y: 1 }} style={styles.head}>
           <Text style={styles.headEmojiDeco}>{subject?.emoji}</Text>
-          <Pressable onPress={() => safeGoBack(router, '/harita')} style={styles.backPill} hitSlop={8}>
+          <Interactive onPress={() => safeGoBack(router, '/harita')} style={styles.backPill} hitSlop={8}>
             <Text style={styles.backText}>‹ Geri</Text>
-          </Pressable>
+          </Interactive>
           <View style={styles.row1}>
             <View style={styles.titles}>
               <Text style={styles.smallLabel}>{(subject?.name ?? '').toLocaleUpperCase('tr')} KALESİ</Text>
@@ -164,7 +165,7 @@ function TopicRow({ topic, color, onPress }: { topic: TopicNode; color: string; 
   const elevated = Platform.OS === 'web' ? ledgeShadowWeb(color, 3) : ledgeShadow(color, 3);
 
   return (
-    <Pressable
+    <Interactive
       onPress={onPress}
       style={[
         styles.topicRow,
@@ -206,7 +207,7 @@ function TopicRow({ topic, color, onPress }: { topic: TopicNode; color: string; 
           <Text style={styles.girPillText}>Gir!</Text>
         </View>
       )}
-    </Pressable>
+    </Interactive>
   );
 }
 

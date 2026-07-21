@@ -1,24 +1,27 @@
 import { Image } from 'expo-image';
-import { useCallback, useRef, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  type NativeSyntheticEvent,
+  type TextInputContentSizeChangeEventData,
+  type TextInputKeyPressEventData,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { WeakTopicsPicker } from '@/components/koc/weak-topics-picker';
 import { Btn3D } from '@/components/ui/btn-3d';
+import { Interactive } from '@/components/ui/interactive';
 import { Pill } from '@/components/ui/pill';
 import { TypingDots } from '@/components/ui/animated/typing-dots';
-import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
+import { AtlasColors, AtlasFonts, AtlasLayout, AtlasRadius } from '@/constants/atlas-theme';
 import {
   fetchCoachHistory,
   fetchOpenMistakes,
@@ -34,9 +37,13 @@ const COACH_AVATAR = require('@/assets/images/atlas/mascot-wave.png');
 
 const GREETING = 'Selam! Ben Atlas Koçun 👋 Nasıl gidiyor, sana nasıl yardımcı olabilirim?';
 
-/** Deneme (mock exam) giriş alanları — jenerik TYT netleri, prototip 5'li düzeni. */
+const MIN_INPUT_H = 22;
+const MAX_INPUT_H = 120;
+
+/** Deneme (mock exam) giriş alanları — jenerik TYT netleri. */
 const DENEME_FIELDS = [
   { key: 'turkce', label: 'Türkçe', subject: 'Türkçe' },
+  { key: 'matematik', label: 'Matematik', subject: 'Matematik' },
   { key: 'tarih', label: 'Tarih', subject: 'Tarih' },
   { key: 'cografya', label: 'Coğrafya', subject: 'Coğrafya' },
   { key: 'felsefe', label: 'Felsefe', subject: 'Felsefe' },
@@ -60,13 +67,16 @@ function uid(): string {
 
 /**
  * EKRAN 11 — Koç (AI sohbet)
- * Canlı coach-chat Edge Function'ına bağlı gerçek sohbet ekranı.
- * Prototip (../index.html #scr-coach) yalnız görsel referans; canlı cevaplar
- * sendCoachMessage() üzerinden DeepSeek'ten gelir.
+ * Canlı coach-chat Edge Function'ına bağlı gerçek sohbet ekranı. ChatGPT
+ * kalıbı: konuşma başlamadan önce ortalanmış bir karşılama + öneri kartları
+ * ekranı, konuşma başlayınca standart mesaj listesi + tek satır büyüyebilen
+ * giriş kutusu. Prototip (../index.html #scr-coach) yalnız görsel referans;
+ * canlı cevaplar sendCoachMessage() üzerinden DeepSeek'ten gelir.
  */
 export default function CoachScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { openDeneme } = useLocalSearchParams<{ openDeneme?: string }>();
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -76,12 +86,21 @@ export default function CoachScreen() {
   const [weekly, setWeekly] = useState<WeeklySummary | null>(null);
 
   const [items, setItems] = useState<ChatItem[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [input, setInput] = useState('');
+  const [inputH, setInputH] = useState(MIN_INPUT_H);
   const [sending, setSending] = useState(false);
 
-  const [denemeOpen, setDenemeOpen] = useState(false);
+  const [denemeOpen, setDenemeOpen] = useState(openDeneme === '1');
+
+  // Sekmeler monte kalır — Deneme sekmesinden "+ Yeni Deneme" ile gelindiğinde
+  // useState initializer tekrar çalışmaz, param'ı ayrıca izlemek gerekir.
+  useEffect(() => {
+    if (openDeneme === '1') setDenemeOpen(true);
+  }, [openDeneme]);
   const [denemeVals, setDenemeVals] = useState<Record<DenemeKey, string>>({
     turkce: '',
+    matematik: '',
     tarih: '',
     cografya: '',
     felsefe: '',
@@ -94,23 +113,39 @@ export default function CoachScreen() {
   const loadedRef = useRef(false);
 
   const load = useCallback(async () => {
+    setLoadError(null);
+    let p: Profile;
     try {
-      const p = await fetchProfile();
+      p = await fetchProfile();
       setProfile(p);
+    } catch (e) {
+      // Profil çekilemezse gate zaten null profile ile premium-değil gibi davranır.
+      console.error('[koc] fetchProfile başarısız:', e);
+      setLoading(false);
+      return;
+    }
 
-      // Sınava kalan gün — render-dışı (impure Date.now() render'da yasak)
-      if (p.exam_date) {
-        const exam = new Date(p.exam_date).getTime();
-        if (!Number.isNaN(exam)) {
-          const diff = Math.ceil((exam - Date.now()) / (24 * 60 * 60 * 1000));
-          setDaysToExam(diff >= 0 ? diff : null);
-        }
+    // Sınava kalan gün — render-dışı (impure Date.now() render'da yasak)
+    if (p.exam_date) {
+      const exam = new Date(p.exam_date).getTime();
+      if (!Number.isNaN(exam)) {
+        const diff = Math.ceil((exam - Date.now()) / (24 * 60 * 60 * 1000));
+        setDaysToExam(diff >= 0 ? diff : null);
       }
+    }
 
-      if (!p.is_premium) {
-        setLoading(false);
-        return;
-      }
+    if (!p.is_premium) {
+      setLoading(false);
+      return;
+    }
+
+    // Premium onaylandı — sohbet ekranını burada göstermeye başla. Aşağıdaki
+    // bağlam/geçmiş çekimi ayrı bir try/catch'te: biri başarısız olursa ekran
+    // sonsuza dek boş kalmasın (önceki sürümde TEK try/catch vardı — Promise.all
+    // içindeki herhangi bir sorgu patlarsa `items` hiç dolmuyor, hata sessizce
+    // yutulup kullanıcı boş bir ekranla baş başa kalıyordu, bkz. proje geçmişi).
+    setLoading(false);
+    try {
       const [history, xp, mistakes, weeklySummary] = await Promise.all([
         fetchCoachHistory(),
         fetchXpToday(),
@@ -143,11 +178,11 @@ export default function CoachScreen() {
           ? historyItems
           : [{ kind: 'msg', id: 'greeting', role: 'coach', content: GREETING }],
       );
-    } catch {
-      // Profil çekilemezse gate zaten null profile ile premium-değil gibi davranır;
-      // burada sessizce loading'i kapatıp upsell/boş durum gösteririz.
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.error('[koc] sohbet geçmişi/bağlam yüklenemedi:', e);
+      // En azından karşılama ekranı görünsün — boş bir void yerine.
+      setItems((prev) => (prev.length > 0 ? prev : [{ kind: 'msg', id: 'greeting', role: 'coach', content: GREETING }]));
+      setLoadError('Bazı veriler yüklenemedi — internetini kontrol edip aşağı çekerek tekrar dene.');
     }
   }, []);
 
@@ -204,8 +239,28 @@ export default function CoachScreen() {
     const text = input.trim();
     if (!text || sending) return;
     setInput('');
+    setInputH(MIN_INPUT_H);
     ask(text);
   }, [input, sending, ask]);
+
+  // Web'de Enter gönderir, Shift+Enter yeni satır açar (ChatGPT kalıbı) —
+  // native'de multiline TextInput onSubmitEditing tetiklemez, gönderim yalnız
+  // sağdaki butonla yapılır.
+  const onInputKeyPress = useCallback(
+    (e: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+      if (Platform.OS !== 'web') return;
+      const ne = e.nativeEvent as unknown as { key?: string; shiftKey?: boolean; preventDefault?: () => void };
+      if (ne.key === 'Enter' && !ne.shiftKey) {
+        ne.preventDefault?.();
+        onSend();
+      }
+    },
+    [onSend],
+  );
+
+  const onInputContentSizeChange = useCallback((e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => {
+    setInputH(Math.max(MIN_INPUT_H, Math.min(MAX_INPUT_H, e.nativeEvent.contentSize.height)));
+  }, []);
 
   const onQuick = useCallback(
     (text: string) => {
@@ -239,7 +294,7 @@ export default function CoachScreen() {
 
     setDenemeWarn(false);
     setDenemeOpen(false);
-    setDenemeVals({ turkce: '', tarih: '', cografya: '', felsefe: '', fen: '' });
+    setDenemeVals({ turkce: '', matematik: '', tarih: '', cografya: '', felsefe: '', fen: '' });
     setWeakTopics(new Set());
 
     try {
@@ -305,204 +360,240 @@ export default function CoachScreen() {
   /* ------------------------------- Sohbet ------------------------------- */
   const goal = profile.daily_xp_goal ?? 200;
   const hasTarget = !!profile.target_university && !!profile.target_department;
+  // Konuşma henüz başlamadı: yalnız yerel karşılama balonu var, gerçek mesaj yok.
+  const isEmptyChat = items.length === 1 && items[0].id === 'greeting';
+
+  const suggestions = [
+    { emoji: '📋', text: 'Bana bu hafta için bir çalışma planı çıkarır mısın?', label: 'Bu hafta için plan çıkar' },
+    { emoji: '😔', text: 'Moralim biraz bozuk, bana motivasyon verir misin?', label: 'Moral lazım' },
+    ...(weakest
+      ? [{ emoji: '⚔️', text: `${weakest.name} netlerimi nasıl yükseltirim?`, label: `${weakest.name} taktiği` }]
+      : []),
+  ];
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {/* Header + Koç Biliyor çipleri (sabit) */}
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.headRow}>
-          <View style={styles.headAva}>
-            <Image source={COACH_AVATAR} style={styles.headAvaImg} contentFit="cover" />
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* ChatGPT tarzı: arkaplan tam genişlik, içerik geniş ekranlarda ortalanmış
+          tek bir sütunda — telefon genişliğinde zaten tam genişlik kaplar. */}
+      <View style={styles.pageColumn}>
+        {/* Header — kompakt, Koç Biliyor bağlam çipleri altta ince bir şerit */}
+        <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+          <View style={styles.headRow}>
+            <View style={styles.headAva}>
+              <Image source={COACH_AVATAR} style={styles.headAvaImg} contentFit="cover" />
+            </View>
+            <View style={styles.headText}>
+              <Text style={styles.headName}>Atlas Koçu</Text>
+              <Text style={styles.headOnline}>● Verilerini görerek konuşuyor</Text>
+            </View>
           </View>
-          <View style={styles.headText}>
-            <Text style={styles.headName}>Atlas Koçu</Text>
-            <Text style={styles.headOnline}>● Çevrimiçi • Verilerini görüyor</Text>
-          </View>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+            <Pill color="rgba(255,150,0,0.15)" textColor="#ffc36e">
+              🔥 {profile.streak_count} gün seri
+            </Pill>
+            <Pill color="rgba(88,204,2,0.14)" textColor="#9fe86e">
+              📊 {xpToday}/{goal} XP
+            </Pill>
+            {hasTarget && (
+              <Pill color="rgba(28,176,246,0.14)" textColor="#7fd4ff">
+                🎯 {profile.target_university} {profile.target_department}
+              </Pill>
+            )}
+            {daysToExam !== null && (
+              <Pill color="rgba(206,130,255,0.15)" textColor="#ddb0ff">
+                📅 {daysToExam} gün kaldı
+              </Pill>
+            )}
+            {weakest && (
+              <Pill color="rgba(255,75,75,0.15)" textColor="#ff9c9c">
+                ⚠️ {weakest.name} zayıf ({weakest.count} yanlış)
+              </Pill>
+            )}
+            {weekly && (
+              <Pill color="rgba(28,176,246,0.14)" textColor="#7fd4ff">
+                📈 Bu hafta {weekly.xpThisWeek} XP • {weekly.quizzesThisWeek} quiz • {weekly.mistakesResolvedThisWeek}{' '}
+                yanlış temizlendi
+              </Pill>
+            )}
+          </ScrollView>
         </View>
 
-        <Text style={styles.knowLabel}>KOÇ BİLİYOR 👁️</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipRow}>
-          <Pill color="rgba(255,150,0,0.15)" textColor="#ffc36e">
-            🔥 {profile.streak_count} gün seri
-          </Pill>
-          <Pill color="rgba(88,204,2,0.14)" textColor="#9fe86e">
-            📊 {xpToday}/{goal} XP
-          </Pill>
-          {hasTarget && (
-            <Pill color="rgba(28,176,246,0.14)" textColor="#7fd4ff">
-              🎯 {profile.target_university} {profile.target_department}
-            </Pill>
-          )}
-          {daysToExam !== null && (
-            <Pill color="rgba(206,130,255,0.15)" textColor="#ddb0ff">
-              📅 {daysToExam} gün kaldı
-            </Pill>
-          )}
-          {weakest && (
-            <Pill color="rgba(255,75,75,0.15)" textColor="#ff9c9c">
-              ⚠️ {weakest.name} zayıf ({weakest.count} yanlış)
-            </Pill>
-          )}
-          {weekly && (
-            <Pill color="rgba(28,176,246,0.14)" textColor="#7fd4ff">
-              📈 Bu hafta {weekly.xpThisWeek} XP • {weekly.quizzesThisWeek} quiz • {weekly.mistakesResolvedThisWeek}{' '}
-              yanlış temizlendi
-            </Pill>
-          )}
-        </ScrollView>
-      </View>
+        {loadError && (
+          <Interactive style={styles.errorBanner} onPress={load}>
+            <Text style={styles.errorBannerText}>⚠️ {loadError} (tekrar denemek için dokun)</Text>
+          </Interactive>
+        )}
 
-      {/* Sohbet balonları */}
-      <ScrollView
-        ref={scrollRef}
-        style={styles.chat}
-        contentContainerStyle={styles.chatContent}
-        onContentSizeChange={scrollToEnd}
-        keyboardShouldPersistTaps="handled">
-        {items.map((item) => {
-          if (item.kind === 'system') {
-            return (
-              <View key={item.id} style={styles.systemWrap}>
-                <Text style={styles.systemText}>{item.content}</Text>
-              </View>
-            );
-          }
-          if (item.kind === 'practice-cta') {
-            return (
-              <View key={item.id} style={styles.practiceCtaWrap}>
-                <Text style={styles.practiceCtaText}>
-                  🎯 Bu denemede zorlandığın {item.topicIds.length} konudan pratik quiz yapabilirsin.
-                </Text>
-                <Btn3D
-                  variant="yellow"
-                  size="small"
-                  onPress={() =>
-                    router.push({
-                      pathname: '/deneme/quiz-hedef',
-                      params: { topicIds: item.topicIds.join(',') },
-                    } as never)
-                  }>
-                  Pratik Yap
-                </Btn3D>
-              </View>
-            );
-          }
-          const isCoach = item.kind === 'typing' || item.role === 'coach';
-          return (
-            <View
-              key={item.id}
-              style={[styles.msgRow, isCoach ? styles.msgRowCoach : styles.msgRowUser]}>
-              {isCoach && (
-                <View style={styles.msgAva}>
-                  <Image source={COACH_AVATAR} style={styles.msgAvaImg} contentFit="cover" />
-                </View>
-              )}
-              {item.kind === 'typing' ? (
-                <View style={[styles.bubble, styles.bubbleCoach, styles.typingBubble]}>
-                  <TypingDots />
-                </View>
-              ) : (
-                <View style={[styles.bubble, isCoach ? styles.bubbleCoach : styles.bubbleUser]}>
-                  <Text style={styles.bubbleText}>{item.content}</Text>
-                </View>
-              )}
-            </View>
-          );
-        })}
-      </ScrollView>
+        {isEmptyChat ? (
+          /* Karşılama ekranı — ChatGPT'nin "bugün sana nasıl yardımcı olabilirim"
+             boş durumu: ortalanmış maskot + başlık + öneri kartları. */
+          <ScrollView contentContainerStyle={styles.heroScroll} keyboardShouldPersistTaps="handled">
+            <Image source={COACH_AVATAR} style={styles.heroMascot} contentFit="contain" />
+            <Text style={styles.heroTitle}>Selam, ben Atlas Koçun 👋</Text>
+            <Text style={styles.heroSub}>Nasıl gidiyor? Sana nasıl yardımcı olabilirim?</Text>
 
-      {/* Deneme sonucu gir (katlanır) */}
-      <View style={styles.denemeBox}>
-        <Pressable style={styles.denemeHead} onPress={() => setDenemeOpen((o) => !o)}>
-          <Text style={styles.denemeHeadText}>📝 Deneme Sonucu Gir</Text>
-          <Text style={styles.denemeCaret}>{denemeOpen ? '▲' : '▼'}</Text>
-        </Pressable>
-        {denemeOpen && (
-          <ScrollView
-            style={styles.denemeBodyScroll}
-            contentContainerStyle={styles.denemeBody}
-            keyboardShouldPersistTaps="handled">
-            <View style={styles.denemeGrid}>
-              {DENEME_FIELDS.map((f) => (
-                <View key={f.key} style={styles.denemeField}>
-                  <Text style={styles.denemeLabel}>{f.label} (net)</Text>
-                  <TextInput
-                    style={styles.denemeInput}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="rgba(255,255,255,0.3)"
-                    value={denemeVals[f.key]}
-                    onChangeText={(t) =>
-                      setDenemeVals((prev) => ({ ...prev, [f.key]: t }))
-                    }
-                  />
-                </View>
+            <View style={styles.heroCards}>
+              {suggestions.map((s) => (
+                <Interactive key={s.label} style={styles.heroCard} onPress={() => onQuick(s.text)}>
+                  <Text style={styles.heroCardEmoji}>{s.emoji}</Text>
+                  <Text style={styles.heroCardText}>{s.label}</Text>
+                  <Text style={styles.heroCardChevron}>›</Text>
+                </Interactive>
               ))}
+              <Interactive style={styles.heroCard} onPress={() => setDenemeOpen(true)}>
+                <Text style={styles.heroCardEmoji}>📝</Text>
+                <Text style={styles.heroCardText}>Deneme sonucu gir</Text>
+                <Text style={styles.heroCardChevron}>›</Text>
+              </Interactive>
             </View>
-
-            <Text style={styles.weakTopicsLabel}>Zayıf Olduğun Konular (opsiyonel)</Text>
-            <WeakTopicsPicker selected={weakTopics} onToggle={onToggleWeakTopic} />
-
-            {denemeWarn && <Text style={styles.denemeWarn}>Önce netlerini gir 📝</Text>}
-            <Btn3D variant="yellow" size="small" onPress={onSaveDeneme} disabled={sending}>
-              Kaydet &amp; Koça Gönder
-            </Btn3D>
+          </ScrollView>
+        ) : (
+          <ScrollView
+            ref={scrollRef}
+            style={styles.chat}
+            contentContainerStyle={styles.chatContent}
+            onContentSizeChange={scrollToEnd}
+            keyboardShouldPersistTaps="handled">
+            {items.map((item) => {
+              if (item.kind === 'system') {
+                return (
+                  <View key={item.id} style={styles.systemWrap}>
+                    <Text style={styles.systemText}>{item.content}</Text>
+                  </View>
+                );
+              }
+              if (item.kind === 'practice-cta') {
+                return (
+                  <View key={item.id} style={styles.practiceCtaWrap}>
+                    <Text style={styles.practiceCtaText}>
+                      🎯 Bu denemede zorlandığın {item.topicIds.length} konudan pratik quiz yapabilirsin.
+                    </Text>
+                    <Btn3D
+                      variant="yellow"
+                      size="small"
+                      onPress={() =>
+                        router.push({
+                          pathname: '/deneme/quiz-hedef',
+                          params: { topicIds: item.topicIds.join(',') },
+                        } as never)
+                      }>
+                      Pratik Yap
+                    </Btn3D>
+                  </View>
+                );
+              }
+              // ChatGPT kalıbı: asistan mesajı balonsuz (avatar + düz metin, geniş
+              // sütun), kullanıcı mesajı sağa yaslı dolgulu balon.
+              const isCoach = item.kind === 'typing' || item.role === 'coach';
+              if (isCoach) {
+                return (
+                  <View key={item.id} style={styles.coachRow}>
+                    <View style={styles.msgAva}>
+                      <Image source={COACH_AVATAR} style={styles.msgAvaImg} contentFit="cover" />
+                    </View>
+                    <View style={styles.coachTextWrap}>
+                      {item.kind === 'typing' ? <TypingDots /> : <Text style={styles.coachText}>{item.content}</Text>}
+                    </View>
+                  </View>
+                );
+              }
+              return (
+                <View key={item.id} style={styles.userRow}>
+                  <View style={styles.userBubble}>
+                    <Text style={styles.userBubbleText}>{item.content}</Text>
+                  </View>
+                </View>
+              );
+            })}
           </ScrollView>
         )}
-      </View>
 
-      {/* Hızlı öneri çipleri */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.suggScroll}
-        contentContainerStyle={styles.suggRow}
-        keyboardShouldPersistTaps="handled">
-        <Pressable
-          style={styles.sugg}
-          disabled={sending}
-          onPress={() => onQuick('Bana bu hafta için bir çalışma planı çıkarır mısın?')}>
-          <Text style={styles.suggText}>📋 Plan çıkar</Text>
-        </Pressable>
-        <Pressable
-          style={styles.sugg}
-          disabled={sending}
-          onPress={() => onQuick('Moralim biraz bozuk, bana motivasyon verir misin?')}>
-          <Text style={styles.suggText}>😔 Moral lazım</Text>
-        </Pressable>
-        {weakest && (
-          <Pressable
-            style={styles.sugg}
-            disabled={sending}
-            onPress={() => onQuick(`${weakest.name} netlerimi nasıl yükseltirim?`)}>
-            <Text style={styles.suggText}>⚔️ {weakest.name} taktiği</Text>
-          </Pressable>
+        {/* Deneme sonucu gir — "+" ile açılan panel, sohbetin üstüne yerleşir */}
+        {denemeOpen && (
+          <View style={styles.denemeBox}>
+            <View style={styles.denemeHead}>
+              <Text style={styles.denemeHeadText}>📝 Deneme Sonucu Gir</Text>
+              <Interactive onPress={() => setDenemeOpen(false)} hitSlop={8}>
+                <Text style={styles.denemeClose}>✕</Text>
+              </Interactive>
+            </View>
+            <ScrollView style={styles.denemeBodyScroll} contentContainerStyle={styles.denemeBody} keyboardShouldPersistTaps="handled">
+              <View style={styles.denemeGrid}>
+                {DENEME_FIELDS.map((f) => (
+                  <View key={f.key} style={styles.denemeField}>
+                    <Text style={styles.denemeLabel}>{f.label} (net)</Text>
+                    <TextInput
+                      style={styles.denemeInput}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      value={denemeVals[f.key]}
+                      onChangeText={(t) => setDenemeVals((prev) => ({ ...prev, [f.key]: t }))}
+                    />
+                  </View>
+                ))}
+              </View>
+
+              <Text style={styles.weakTopicsLabel}>Zayıf Olduğun Konular (opsiyonel)</Text>
+              <WeakTopicsPicker selected={weakTopics} onToggle={onToggleWeakTopic} />
+
+              {denemeWarn && <Text style={styles.denemeWarn}>Önce netlerini gir 📝</Text>}
+              <Btn3D variant="yellow" size="small" onPress={onSaveDeneme} disabled={sending}>
+                Kaydet &amp; Koça Gönder
+              </Btn3D>
+            </ScrollView>
+          </View>
         )}
-      </ScrollView>
 
-      {/* Mesaj girişi (sabit alt) */}
-      <View style={[styles.inputBar, { paddingBottom: insets.bottom + 10 }]}>
-        <TextInput
-          style={styles.input}
-          value={input}
-          onChangeText={setInput}
-          placeholder="Koçuna bir şey sor..."
-          placeholderTextColor="rgba(255,255,255,0.35)"
-          onSubmitEditing={onSend}
-          returnKeyType="send"
-          editable={!sending}
-        />
-        <Pressable
-          style={[styles.sendBtn, sending && styles.sendBtnDisabled]}
-          onPress={onSend}
-          disabled={sending}>
-          <Text style={styles.sendIcon}>➤</Text>
-        </Pressable>
+        {/* Öneri çipleri — yalnız konuşma başladıktan sonra, giriş kutusunun hemen üstünde */}
+        {!isEmptyChat && !denemeOpen && suggestions.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.suggScroll}
+            contentContainerStyle={styles.suggRow}
+            keyboardShouldPersistTaps="handled">
+            {suggestions.map((s) => (
+              <Interactive key={s.label} style={styles.sugg} disabled={sending} onPress={() => onQuick(s.text)}>
+                <Text style={styles.suggText}>
+                  {s.emoji} {s.label}
+                </Text>
+              </Interactive>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Mesaj girişi (sabit alt) — ChatGPT tarzı: "+" (deneme paneli) solda,
+            ortada büyüyebilen tek satır input, sağda gönder butonu. */}
+        <View style={[styles.inputBar, { paddingBottom: insets.bottom + 10 }]}>
+          <Interactive
+            style={[styles.plusBtn, denemeOpen && styles.plusBtnActive]}
+            onPress={() => setDenemeOpen((o) => !o)}
+            hitSlop={8}>
+            <Text style={styles.plusIcon}>{denemeOpen ? '✕' : '+'}</Text>
+          </Interactive>
+          <View style={styles.inputWrap}>
+            <TextInput
+              style={[styles.input, { height: inputH }]}
+              value={input}
+              onChangeText={setInput}
+              placeholder="Koçuna bir şey sor..."
+              placeholderTextColor="rgba(255,255,255,0.35)"
+              multiline
+              blurOnSubmit={false}
+              onKeyPress={onInputKeyPress}
+              onContentSizeChange={onInputContentSizeChange}
+              editable={!sending}
+            />
+          </View>
+          <Interactive
+            style={[styles.sendBtn, (sending || !input.trim()) && styles.sendBtnDisabled]}
+            onPress={onSend}
+            disabled={sending || !input.trim()}>
+            <Text style={styles.sendIcon}>➤</Text>
+          </Interactive>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
@@ -510,6 +601,18 @@ export default function CoachScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AtlasColors.coachBg },
+  // ChatGPT tarzı ortalanmış sütun — dar (telefon) ekranlarda tam genişlik,
+  // geniş (masaüstü web) ekranlarda AtlasLayout.maxContentWidth'te ortalanır.
+  // minHeight: 0 KRİTİK: bu olmadan RN Web'de flex:1 alt-öğe (chat ScrollView)
+  // kardeşleri arasında küçülüp kendi içinde kaymak yerine tüm sayfayı büyütüyor
+  // — önceki mesajlar görünüm dışına itiliyordu, bug buradan geliyordu.
+  pageColumn: {
+    flex: 1,
+    minHeight: 0,
+    width: '100%',
+    maxWidth: AtlasLayout.maxContentWidth,
+    alignSelf: 'center',
+  },
   center: { alignItems: 'center', justifyContent: 'center', padding: 24 },
 
   /* Premium gate */
@@ -529,63 +632,85 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: 'rgba(0,0,0,0.4)',
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.07)',
   },
-  headRow: { flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 12 },
+  headRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 9 },
   headAva: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: AtlasColors.violet,
     overflow: 'hidden',
   },
   headAvaImg: { width: '100%', height: '100%' },
   headText: { flex: 1 },
-  headName: { color: AtlasColors.white, fontSize: 16, fontFamily: AtlasFonts.heading },
-  headOnline: { color: '#6ee26e', fontSize: 11, fontFamily: AtlasFonts.bodySemi, marginTop: 1 },
-  knowLabel: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 9.5,
-    letterSpacing: 1.2,
-    fontFamily: AtlasFonts.heading,
-    marginBottom: 7,
-  },
+  headName: { color: AtlasColors.white, fontSize: 15, fontFamily: AtlasFonts.heading },
+  headOnline: { color: '#6ee26e', fontSize: 10.5, fontFamily: AtlasFonts.bodySemi, marginTop: 1 },
   chipRow: { flexDirection: 'row', gap: 7, paddingRight: 8 },
 
+  errorBanner: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    backgroundColor: 'rgba(255,75,75,0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,75,75,0.35)',
+    borderRadius: AtlasRadius.button,
+    padding: 10,
+  },
+  errorBannerText: { color: '#ff9c9c', fontSize: 12, fontFamily: AtlasFonts.bodySemi, textAlign: 'center' },
+
+  /* Karşılama (boş sohbet) ekranı */
+  heroScroll: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 8 },
+  heroMascot: { width: 96, height: 96, marginBottom: 4 },
+  heroTitle: { color: AtlasColors.white, fontFamily: AtlasFonts.heading, fontSize: 21, textAlign: 'center' },
+  heroSub: { color: 'rgba(255,255,255,0.6)', fontFamily: AtlasFonts.bodySemi, fontSize: 13, textAlign: 'center', marginBottom: 14 },
+  heroCards: { width: '100%', maxWidth: 420, gap: 8 },
+  heroCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: AtlasRadius.button,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+  },
+  heroCardEmoji: { fontSize: 17 },
+  heroCardText: { flex: 1, color: AtlasColors.white, fontFamily: AtlasFonts.bodySemi, fontSize: 13.5 },
+  heroCardChevron: { color: 'rgba(255,255,255,0.35)', fontFamily: AtlasFonts.heading, fontSize: 16 },
+
   /* Chat */
-  chat: { flex: 1 },
-  chatContent: { padding: 16, gap: 13 },
-  msgRow: { flexDirection: 'row', gap: 8, maxWidth: '100%' },
-  msgRowCoach: { justifyContent: 'flex-start' },
-  msgRowUser: { justifyContent: 'flex-end' },
+  chat: { flex: 1, minHeight: 0 },
+  chatContent: { padding: 16, gap: 18, flexGrow: 1 },
+
+  // Asistan: balonsuz, avatar + geniş düz metin (ChatGPT paragraf kalıbı)
+  coachRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  coachTextWrap: { flex: 1, paddingTop: 4 },
+  coachText: { color: 'rgba(255,255,255,0.92)', fontSize: 14.5, lineHeight: 21.5, fontFamily: AtlasFonts.body },
   msgAva: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: AtlasColors.violet,
     overflow: 'hidden',
-    alignSelf: 'flex-end',
   },
   msgAvaImg: { width: '100%', height: '100%' },
-  bubble: { maxWidth: '78%', paddingVertical: 11, paddingHorizontal: 14 },
-  bubbleCoach: {
-    backgroundColor: 'rgba(255,255,255,0.09)',
-    borderTopLeftRadius: AtlasRadius.bubble,
-    borderTopRightRadius: AtlasRadius.bubble,
-    borderBottomRightRadius: AtlasRadius.bubble,
-    borderBottomLeftRadius: 4,
-  },
-  bubbleUser: {
+
+  // Kullanıcı: sağa yaslı dolgulu balon
+  userRow: { flexDirection: 'row', justifyContent: 'flex-end' },
+  userBubble: {
+    maxWidth: '80%',
     backgroundColor: AtlasColors.violet,
-    borderTopLeftRadius: AtlasRadius.bubble,
-    borderTopRightRadius: AtlasRadius.bubble,
+    borderRadius: AtlasRadius.bubble,
     borderBottomRightRadius: 4,
-    borderBottomLeftRadius: AtlasRadius.bubble,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
   },
-  bubbleText: { color: AtlasColors.white, fontSize: 13.5, lineHeight: 20, fontFamily: AtlasFonts.body },
-  typingBubble: { paddingVertical: 8, paddingHorizontal: 10 },
+  userBubbleText: { color: AtlasColors.white, fontSize: 14, lineHeight: 20, fontFamily: AtlasFonts.body },
+
   systemWrap: { alignItems: 'center', paddingVertical: 2 },
   systemText: {
     color: 'rgba(255,255,255,0.55)',
@@ -598,11 +723,12 @@ const styles = StyleSheet.create({
     borderRadius: AtlasRadius.pill,
   },
 
-  /* Deneme */
+  /* Deneme paneli ("+" ile açılır) */
   denemeBox: {
     marginHorizontal: 16,
     marginBottom: 10,
-    backgroundColor: 'rgba(255,200,0,0.08)',
+    maxHeight: 340,
+    backgroundColor: '#1B1530',
     borderWidth: 1.5,
     borderColor: 'rgba(255,200,0,0.3)',
     borderRadius: AtlasRadius.bubble,
@@ -611,13 +737,16 @@ const styles = StyleSheet.create({
   denemeHead: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 13,
     paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
-  denemeHeadText: { flex: 1, color: '#ffd95e', fontSize: 13.5, fontFamily: AtlasFonts.headingBold },
-  denemeCaret: { color: '#ffd95e', fontSize: 11 },
-  denemeBodyScroll: { maxHeight: 320 },
-  denemeBody: { paddingHorizontal: 15, paddingBottom: 15, gap: 10 },
+  denemeHeadText: { color: '#ffd95e', fontSize: 13.5, fontFamily: AtlasFonts.headingBold },
+  denemeClose: { color: 'rgba(255,255,255,0.6)', fontSize: 15, fontFamily: AtlasFonts.heading },
+  denemeBodyScroll: { maxHeight: 290 },
+  denemeBody: { paddingHorizontal: 15, paddingVertical: 15, gap: 10 },
   denemeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   denemeField: { flexBasis: '47%', flexGrow: 1 },
   denemeLabel: {
@@ -649,8 +778,6 @@ const styles = StyleSheet.create({
   practiceCtaWrap: {
     alignItems: 'center',
     gap: 8,
-    marginHorizontal: 16,
-    marginBottom: 4,
     backgroundColor: 'rgba(255,200,0,0.08)',
     borderWidth: 1.5,
     borderColor: 'rgba(255,200,0,0.3)',
@@ -675,32 +802,50 @@ const styles = StyleSheet.create({
   /* Input */
   inputBar: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
+    alignItems: 'flex-end',
+    gap: 8,
     paddingHorizontal: 16,
     paddingTop: 10,
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
-  input: {
+  plusBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.09)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.13)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  plusBtnActive: { backgroundColor: 'rgba(255,200,0,0.18)', borderColor: 'rgba(255,200,0,0.4)' },
+  plusIcon: { color: AtlasColors.white, fontSize: 18, fontFamily: AtlasFonts.heading, marginTop: -1 },
+  inputWrap: {
     flex: 1,
     backgroundColor: 'rgba(255,255,255,0.09)',
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.13)',
-    borderRadius: 14,
-    paddingVertical: 12,
+    borderRadius: 20,
     paddingHorizontal: 15,
+    paddingVertical: 11,
+    justifyContent: 'center',
+  },
+  input: {
     color: AtlasColors.white,
     fontSize: 13.5,
     fontFamily: AtlasFonts.body,
+    paddingTop: 0,
+    paddingBottom: 0,
+    maxHeight: MAX_INPUT_H,
   },
   sendBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: AtlasColors.violet,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtnDisabled: { opacity: 0.5 },
-  sendIcon: { color: AtlasColors.white, fontSize: 18 },
+  sendBtnDisabled: { opacity: 0.4 },
+  sendIcon: { color: AtlasColors.white, fontSize: 16 },
 });

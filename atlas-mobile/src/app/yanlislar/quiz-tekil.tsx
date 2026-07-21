@@ -1,12 +1,13 @@
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BadgeUnlockPopup } from '@/components/badges/badge-unlock-popup';
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Confetti } from '@/components/ui/animated/confetti';
+import { Interactive } from '@/components/ui/interactive';
 import { MascotPop } from '@/components/ui/animated/mascot-pop';
 import { HeartsRow } from '@/components/ui/hearts-row';
 import { Pill } from '@/components/ui/pill';
@@ -149,9 +150,9 @@ export default function SingleQuizScreen() {
     <View style={styles.quizBg}>
       <SafeAreaView style={styles.quizSafe}>
         <View style={styles.quizHead}>
-          <Pressable onPress={toMistakes} hitSlop={10}>
+          <Interactive onPress={toMistakes} hitSlop={10}>
             <Text style={styles.closeX}>✕</Text>
-          </Pressable>
+          </Interactive>
           <Text style={styles.headLabel}>Yanlışını Düzelt</Text>
           <HeartsRow hearts={startHearts} size={16} />
         </View>
@@ -170,7 +171,7 @@ export default function SingleQuizScreen() {
             const isCorrectOpt = answered && i === question.correct_index;
             const isWrongSel = answered && isSel && !isCorrectOpt;
             return (
-              <Pressable
+              <Interactive
                 key={i}
                 disabled={answered}
                 onPress={() => setSelected(i)}
@@ -186,7 +187,7 @@ export default function SingleQuizScreen() {
                 <Text style={styles.optText}>{opt}</Text>
                 {isCorrectOpt && <Text style={styles.optMark}>✓</Text>}
                 {isWrongSel && <Text style={styles.optMark}>✗</Text>}
-              </Pressable>
+              </Interactive>
             );
           })}
         </ScrollView>

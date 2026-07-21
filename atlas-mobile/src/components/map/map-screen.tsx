@@ -1,8 +1,9 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Interactive } from '@/components/ui/interactive';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AtlasColors, AtlasFonts } from '@/constants/atlas-theme';
 import { computeCastleViewModels, computeOverallFraction, type CastleViewModel } from '@/lib/map-progress';
@@ -54,9 +55,18 @@ export function MapScreen() {
   const effectiveWidth = Math.min(deviceWidth, 460);
   const widthScale = effectiveWidth / MAP_REF_WIDTH;
   // Harita alanı hem genişliğe hem de header/footer arasında kalan gerçek yüksekliğe
-  // göre ölçeklenir — böylece harita her zaman kaydırmaya gerek kalmadan tek ekrana sığar.
+  // göre ölçeklenir. AMA pencere oranı telefon oranından (393x852) çok farklıysa
+  // (web'de kısa/geniş bir pencere, ya da telefon yatay modda) salt yüksekliğe göre
+  // ölçeklemek `scale`'i çok küçültüyordu — kale ikonları SABİT boyutlu olduğundan
+  // (bkz. castle-node.tsx yorumu, ~0.85-1.17 dar aralık varsayılmıştı) küçük scale'de
+  // iç içe geçip haritayı küçük, karman çorman bir kümeye dönüştürüyordu; boss kalenin
+  // altın parıltısı da bu kümeyi baskın "sarı" gösteriyordu. `MIN_MAP_SCALE` altına
+  // inmesini engelliyoruz; bu durumda harita minimum boyutta kalır ve gerekirse
+  // dikey kaydırma devreye girer (aşağıdaki `fitsWithoutScroll`).
+  const MIN_MAP_SCALE = 0.82;
   const heightScale = areaHeight > 0 ? areaHeight / MAP_REF_HEIGHT : widthScale;
-  const scale = Math.min(widthScale, heightScale);
+  const scale = Math.max(MIN_MAP_SCALE, Math.min(widthScale, heightScale));
+  const fitsWithoutScroll = areaHeight === 0 || MAP_REF_HEIGHT * scale <= areaHeight;
   const overallFrac = castles ? computeOverallFraction(castles) : 0;
   const doneCount = castles ? castles.filter((c) => c.state === 'done').length : 0;
 
@@ -69,14 +79,14 @@ export function MapScreen() {
           {showAytToggle && (
             <View style={styles.trackToggle}>
               {(['tyt', 'ayt'] as const).map((t) => (
-                <Pressable
+                <Interactive
                   key={t}
                   onPress={() => setExamType(t)}
                   style={[styles.trackPill, examType === t && styles.trackPillActive]}>
                   <Text style={[styles.trackPillText, examType === t && styles.trackPillTextActive]}>
                     {t.toUpperCase()}
                   </Text>
-                </Pressable>
+                </Interactive>
               ))}
             </View>
           )}
@@ -86,8 +96,8 @@ export function MapScreen() {
 
         <ScrollView
           style={styles.scrollArea}
-          scrollEnabled={false}
-          contentContainerStyle={styles.scrollContent}
+          scrollEnabled={!fitsWithoutScroll}
+          contentContainerStyle={fitsWithoutScroll ? styles.scrollContent : styles.scrollContentTall}
           onLayout={(e) => setAreaHeight(e.nativeEvent.layout.height)}>
           <View style={{ width: deviceWidth, alignItems: 'center' }}>
             <View style={{ width: MAP_REF_WIDTH * scale, height: MAP_REF_HEIGHT * scale }}>
@@ -131,6 +141,7 @@ const styles = StyleSheet.create({
   head: { paddingHorizontal: 18, paddingVertical: 10, gap: 8 },
   scrollArea: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center' },
+  scrollContentTall: { paddingVertical: 16 },
   headTitle: { fontSize: 18, fontFamily: AtlasFonts.heading, color: AtlasColors.white },
   trackToggle: { flexDirection: 'row', gap: 8 },
   trackPill: {

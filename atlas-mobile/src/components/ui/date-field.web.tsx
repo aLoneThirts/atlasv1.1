@@ -1,6 +1,7 @@
 import { useRef } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasColors, AtlasRadius } from '@/constants/atlas-theme';
 
 function formatTr(iso: string): string {
@@ -47,7 +48,7 @@ export function DateField({
   };
 
   return (
-    <Pressable
+    <Interactive
       onPress={openPicker}
       style={[
         styles.input,
@@ -73,7 +74,7 @@ export function DateField({
           }}
         />
       </View>
-    </Pressable>
+    </Interactive>
   );
 }
 

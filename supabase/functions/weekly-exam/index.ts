@@ -26,6 +26,7 @@ type MistakeRow = {
 };
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+const CONGRATS_TITLE = '🎉 Tertemiz bir hafta!';
 
 /** Europe/Istanbul (UTC+3, sabit) gününe göre bu haftanın pazartesi'si — YYYY-MM-DD */
 function weekStartIstanbul(): string {
@@ -33,6 +34,16 @@ function weekStartIstanbul(): string {
   const daysSinceMonday = (tr.getUTCDay() + 6) % 7; // Pzt=0 ... Paz=6
   tr.setUTCDate(tr.getUTCDate() - daysSinceMonday);
   return tr.toISOString().slice(0, 10);
+}
+
+/** weekStartIstanbul()'ün aynı Pazartesi'si, 00:00 Europe/Istanbul olarak UTC ISO string —
+ * "tebrik" push'unun bu hafta zaten gidip gitmediğini notifications tablosunda aramak için. */
+function weekStartIstanbulIso(): string {
+  const tr = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  const daysSinceMonday = (tr.getUTCDay() + 6) % 7;
+  tr.setUTCDate(tr.getUTCDate() - daysSinceMonday);
+  tr.setUTCHours(0, 0, 0, 0);
+  return new Date(tr.getTime() - 3 * 60 * 60 * 1000).toISOString();
 }
 
 /** Ders çeşitliliğini koruyarak en fazla `max` soru seç (subject round-robin) */
@@ -98,8 +109,11 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: usersErr.message }), { status: 500 });
   }
 
-  let examsCreated = 0, congrats = 0, skipped = 0;
+  let examsCreated = 0, congrats = 0, skipped = 0, congratsSkipped = 0;
   const pushes: object[] = [];
+  const congratsNotificationRows: { user_id: string; title: string; body: string; route: string }[] = [];
+  const congratsBody = 'Bu hafta hiç yanlışın yok — kale duvarların sapasağlam. Böyle devam!';
+  const weekStartIso = weekStartIstanbulIso();
 
   for (const user of users ?? []) {
     const { data: mistakes, error: mErr } = await supabase
@@ -116,12 +130,32 @@ Deno.serve(async (req) => {
     }
 
     if (!mistakes || mistakes.length === 0) {
+      // idempotent kurulum: weekly_exams satırı yok (§4.7 — hiç yanlış yoksa
+      // sınav satırı açılmaz), bu yüzden tekrar-gönderim kontrolü notifications
+      // tablosunda yapılır (streak-reminder ile aynı desen) — cron aynı hafta
+      // iki kez koşarsa "tertemiz hafta" bildirimi mükerrer gitmesin.
+      const { data: existing, error: existingErr } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('title', CONGRATS_TITLE)
+        .gte('created_at', weekStartIso)
+        .maybeSingle();
+      if (existingErr) {
+        console.error(`notifications kontrolü (${user.id}):`, existingErr.message);
+        continue;
+      }
+      if (existing) {
+        congratsSkipped++;
+        continue;
+      }
       pushes.push({
         to: user.expo_push_token,
-        title: '🎉 Tertemiz bir hafta!',
-        body: 'Bu hafta hiç yanlışın yok — kale duvarların sapasağlam. Böyle devam!',
+        title: CONGRATS_TITLE,
+        body: congratsBody,
         data: { route: '/yanlislar' },
       });
+      congratsNotificationRows.push({ user_id: user.id, title: CONGRATS_TITLE, body: congratsBody, route: '/yanlislar' });
       congrats++;
       continue;
     }
@@ -163,9 +197,13 @@ Deno.serve(async (req) => {
   }
 
   await sendPush(pushes);
+  if (congratsNotificationRows.length > 0) {
+    const { error: insertErr } = await supabase.from('notifications').insert(congratsNotificationRows);
+    if (insertErr) console.error('notifications insert (congrats):', insertErr.message);
+  }
 
   return new Response(
-    JSON.stringify({ week_start: weekStart, exams: examsCreated, congrats, skipped }),
+    JSON.stringify({ week_start: weekStart, exams: examsCreated, congrats, skipped, congratsSkipped }),
     { headers: { 'Content-Type': 'application/json' } },
   );
 });

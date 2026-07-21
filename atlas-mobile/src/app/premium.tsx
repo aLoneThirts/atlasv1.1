@@ -1,9 +1,10 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Interactive } from '@/components/ui/interactive';
 import { PremiumBenefits } from '@/components/premium/premium-benefits';
 import { AtlasFonts, AtlasGradients, AtlasLayout } from '@/constants/atlas-theme';
 import { safeGoBack } from '@/lib/navigation';
@@ -25,9 +26,9 @@ export default function PremiumScreen() {
     <LinearGradient colors={AtlasGradients.bossGold} style={styles.container}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Pressable onPress={() => safeGoBack(router)} hitSlop={10}>
+          <Interactive onPress={() => safeGoBack(router)} hitSlop={10}>
             <Text style={styles.back}>‹ Geri</Text>
-          </Pressable>
+          </Interactive>
         </View>
         <ScrollView contentContainerStyle={styles.scroll}>
           <Image

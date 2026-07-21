@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasFonts } from '@/constants/atlas-theme';
 import { fetchSubjects, fetchSubjectTree } from '@/lib/queries';
 import type { Subject, UnitNode } from '@/lib/types';
@@ -28,7 +29,7 @@ export function WeakTopicsPicker({
   useEffect(() => {
     fetchSubjects()
       .then(setSubjects)
-      .catch(() => {});
+      .catch((e) => console.error('[weak-topics-picker] dersler yüklenemedi:', e));
   }, []);
 
   const toggleSubject = async (subject: Subject) => {
@@ -42,8 +43,8 @@ export function WeakTopicsPicker({
       try {
         const tree = await fetchSubjectTree(subject.id);
         setSubjectTrees((prev) => ({ ...prev, [subject.id]: tree }));
-      } catch {
-        /* sessizce geç — bölüm listesi boş görünür */
+      } catch (e) {
+        console.error(`[weak-topics-picker] ${subject.id} ağacı yüklenemedi:`, e);
       } finally {
         setLoadingSubjectId(null);
       }
@@ -74,12 +75,12 @@ export function WeakTopicsPicker({
         const count = selectedCountFor(subject.id);
         return (
           <View key={subject.id} style={styles.subjectBox}>
-            <Pressable style={styles.subjectHead} onPress={() => toggleSubject(subject)}>
+            <Interactive style={styles.subjectHead} onPress={() => toggleSubject(subject)}>
               <Text style={styles.subjectEmoji}>{subject.emoji}</Text>
               <Text style={styles.subjectName}>{subject.name}</Text>
               {count > 0 && <Text style={styles.subjectCount}>{count} seçili</Text>}
               <Text style={styles.caret}>{expanded ? '▲' : '▼'}</Text>
-            </Pressable>
+            </Interactive>
 
             {expanded && (
               <View style={styles.unitList}>
@@ -88,17 +89,17 @@ export function WeakTopicsPicker({
                   const unitExpanded = expandedUnitIds.has(unit.id);
                   return (
                     <View key={unit.id} style={styles.unitBox}>
-                      <Pressable style={styles.unitHead} onPress={() => toggleUnit(unit.id)}>
+                      <Interactive style={styles.unitHead} onPress={() => toggleUnit(unit.id)}>
                         <Text style={styles.unitTitle} numberOfLines={1}>
                           {unit.title}
                         </Text>
                         <Text style={styles.caretSmall}>{unitExpanded ? '▲' : '▼'}</Text>
-                      </Pressable>
+                      </Interactive>
                       {unitExpanded &&
                         unit.topics.map((topic) => {
                           const checked = selected.has(topic.id);
                           return (
-                            <Pressable
+                            <Interactive
                               key={topic.id}
                               style={styles.topicRow}
                               onPress={() => onToggle(topic.id)}>
@@ -108,7 +109,7 @@ export function WeakTopicsPicker({
                               <Text style={styles.topicTitle} numberOfLines={2}>
                                 {topic.title}
                               </Text>
-                            </Pressable>
+                            </Interactive>
                           );
                         })}
                     </View>

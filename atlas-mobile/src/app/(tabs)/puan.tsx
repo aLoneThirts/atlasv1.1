@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
 import {
   calculateAndSaveExamScore,
@@ -179,18 +180,18 @@ export default function PuanScreen() {
 
           <View style={styles.tabRow}>
             {(Object.keys(SCORE_TYPE_LABELS) as ScoreTypeUi[]).map((st) => (
-              <Pressable
+              <Interactive
                 key={st}
                 onPress={() => switchScoreType(st)}
                 style={[styles.tab, { borderColor: surface.cardBorder }, scoreType === st && styles.tabActive]}>
                 <Text style={[styles.tabText, scoreType === st && styles.tabTextActive]}>{SCORE_TYPE_LABELS[st]}</Text>
-              </Pressable>
+              </Interactive>
             ))}
           </View>
 
           <View style={styles.yearRow}>
             {YEARS.map((y) => (
-              <Pressable
+              <Interactive
                 key={y}
                 onPress={() => {
                   setYear(y);
@@ -198,7 +199,7 @@ export default function PuanScreen() {
                 }}
                 style={[styles.yearPill, { borderColor: surface.cardBorder }, year === y && styles.yearPillActive]}>
                 <Text style={[styles.yearText, year === y && styles.yearTextActive]}>{y}</Text>
-              </Pressable>
+              </Interactive>
             ))}
           </View>
 
@@ -251,7 +252,7 @@ export default function PuanScreen() {
                 setResult(null);
               }}
             />
-            <Pressable
+            <Interactive
               style={styles.checkRow}
               onPress={() => {
                 setOncekiYilYerlesti((v) => !v);
@@ -263,7 +264,7 @@ export default function PuanScreen() {
               <Text style={[styles.checkLabel, { color: surface.text }]}>
                 Önceki yıl bir programa yerleştim (OBP katkısı yarıya iner)
               </Text>
-            </Pressable>
+            </Interactive>
           </Card>
 
           {error && <Text style={styles.error}>{error}</Text>}
@@ -420,7 +421,7 @@ function OkulBolumSorgula({ surface }: { surface: (typeof AtlasSurface)[keyof ty
 
       {results.map((p) => (
         <View key={p.id} style={[styles.programItem, { borderColor: surface.cardBorder }]}>
-          <Pressable onPress={() => toggleProgram(p)} style={styles.programHead}>
+          <Interactive onPress={() => toggleProgram(p)} style={styles.programHead}>
             <View style={{ flex: 1 }}>
               <Text style={[styles.programUni, { color: surface.text }]}>{p.university}</Text>
               <Text style={[styles.programDept, { color: surface.textSecondary }]}>
@@ -429,7 +430,7 @@ function OkulBolumSorgula({ surface }: { surface: (typeof AtlasSurface)[keyof ty
               </Text>
             </View>
             <Text style={{ color: surface.textSecondary }}>{openId === p.id ? '▲' : '▼'}</Text>
-          </Pressable>
+          </Interactive>
 
           {openId === p.id && (
             <View style={styles.programBody}>

@@ -38,9 +38,21 @@ export function Btn3D({
   const isGhost = variant === 'ghost' && !disabled;
   const small = size === 'small';
   const translateY = useSharedValue(0);
+  const pressed = useSharedValue(false);
+  const hovered = useSharedValue(false);
 
+  // Basılınca tam iner (Press3D.pressTranslate) — bu, web hover'ından bile
+  // önceliklidir. Yalnız hover'dayken (basılı değil) hafifçe yükselir; bu,
+  // butonun "tıklamaya hazır" görünmesini sağlayan bir web-only ipucu,
+  // native'de onHoverIn hiç tetiklenmediği için zararsızca no-op kalır.
   const innerStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [
+      {
+        translateY: withTiming(pressed.value ? Press3D.pressTranslate : hovered.value ? -1 : 0, {
+          duration: 100,
+        }),
+      },
+    ],
   }));
 
   const shadowStyle = Platform.OS === 'web' ? ledgeShadowWeb(v.shadow, Press3D.shadowHeight) : ledgeShadow(v.shadow, Press3D.shadowHeight);
@@ -50,10 +62,16 @@ export function Btn3D({
       disabled={disabled}
       onPress={onPress}
       onPressIn={() => {
-        translateY.value = withTiming(Press3D.pressTranslate, { duration: 80 });
+        pressed.value = true;
       }}
       onPressOut={() => {
-        translateY.value = withTiming(0, { duration: 80 });
+        pressed.value = false;
+      }}
+      onHoverIn={() => {
+        hovered.value = true;
+      }}
+      onHoverOut={() => {
+        hovered.value = false;
       }}
       style={[styles.wrapper, { borderRadius: small ? 12 : AtlasRadius.button }, style]}>
       <View

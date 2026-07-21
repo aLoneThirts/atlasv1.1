@@ -1,11 +1,12 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
 import { DateField } from '@/components/ui/date-field';
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasColors, AtlasFonts, AtlasLayout, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
 import { refreshExamCountdownNotification } from '@/lib/exam-countdown-notification';
 import { safeGoBack } from '@/lib/navigation';
@@ -116,9 +117,9 @@ export default function AyarlarScreen() {
     <View style={[styles.container, { backgroundColor: surface.bg }]}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Pressable onPress={() => safeGoBack(router)} hitSlop={10}>
+          <Interactive onPress={() => safeGoBack(router)} hitSlop={10}>
             <Text style={[styles.back, { color: surface.text }]}>‹ Geri</Text>
-          </Pressable>
+          </Interactive>
           <Text style={[styles.title, { color: surface.text }]}>Ayarlar</Text>
           <View style={styles.backSpacer} />
         </View>
@@ -148,7 +149,7 @@ export default function AyarlarScreen() {
             {!loading && (
               <View style={styles.trackRow}>
                 {EXAM_TRACK_OPTIONS.map((opt) => (
-                  <Pressable
+                  <Interactive
                     key={opt.value}
                     onPress={() => onPickExamTrack(opt.value)}
                     style={[
@@ -159,7 +160,7 @@ export default function AyarlarScreen() {
                     <Text style={[styles.trackPillText, examTrack === opt.value && styles.trackPillTextActive]}>
                       {opt.label}
                     </Text>
-                  </Pressable>
+                  </Interactive>
                 ))}
               </View>
             )}
@@ -210,9 +211,9 @@ export default function AyarlarScreen() {
           </Card>
 
           <Card style={styles.card}>
-            <Pressable onPress={() => router.push('/hukuki')} hitSlop={8}>
+            <Interactive onPress={() => router.push('/hukuki')} hitSlop={8}>
               <Text style={[styles.sectionTitle, { color: surface.text }]}>Gizlilik ve Kullanım Şartları</Text>
-            </Pressable>
+            </Interactive>
           </Card>
 
           <Card style={styles.card}>
@@ -222,9 +223,9 @@ export default function AyarlarScreen() {
             </Text>
             {deleteError && <Text style={styles.error}>{deleteError}</Text>}
             {!deleteConfirming ? (
-              <Pressable onPress={() => setDeleteConfirming(true)} hitSlop={8}>
+              <Interactive onPress={() => setDeleteConfirming(true)} hitSlop={8}>
                 <Text style={styles.dangerLink}>Hesabı Sil</Text>
-              </Pressable>
+              </Interactive>
             ) : (
               <View style={styles.form}>
                 <Text style={[styles.sectionSub, { color: surface.text }]}>
@@ -233,9 +234,9 @@ export default function AyarlarScreen() {
                 <Btn3D variant="red" onPress={onDeleteAccount} disabled={deleteBusy}>
                   {deleteBusy ? 'Siliniyor...' : 'Evet, Kalıcı Olarak Sil'}
                 </Btn3D>
-                <Pressable onPress={() => setDeleteConfirming(false)} disabled={deleteBusy} hitSlop={8}>
+                <Interactive onPress={() => setDeleteConfirming(false)} disabled={deleteBusy} hitSlop={8}>
                   <Text style={[styles.sectionSub, { color: surface.textSecondary, textAlign: 'center' }]}>Vazgeç</Text>
-                </Pressable>
+                </Interactive>
               </View>
             )}
           </Card>

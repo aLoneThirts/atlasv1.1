@@ -1,9 +1,10 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BadgeGrid } from '@/components/badges/badge-grid';
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasFonts, AtlasSurface } from '@/constants/atlas-theme';
 import { safeGoBack } from '@/lib/navigation';
 import { fetchBadges } from '@/lib/queries';
@@ -21,7 +22,7 @@ export default function RozetlerScreen() {
   useEffect(() => {
     fetchBadges()
       .then(setBadges)
-      .catch(() => {});
+      .catch((e) => console.error('[rozetler] yüklenemedi:', e));
   }, []);
 
   const earnedCount = badges.filter((b) => b.earned).length;
@@ -30,9 +31,9 @@ export default function RozetlerScreen() {
     <View style={[styles.container, { backgroundColor: surface.bg }]}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Pressable onPress={() => safeGoBack(router)} hitSlop={10}>
+          <Interactive onPress={() => safeGoBack(router)} hitSlop={10}>
             <Text style={[styles.back, { color: surface.text }]}>‹ Geri</Text>
-          </Pressable>
+          </Interactive>
           <Text style={[styles.title, { color: surface.text }]}>Rozetlerim</Text>
           <View style={styles.backSpacer} />
         </View>

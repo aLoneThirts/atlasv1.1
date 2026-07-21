@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,6 +16,7 @@ import { BadgeUnlockPopup } from '@/components/badges/badge-unlock-popup';
 import { Confetti } from '@/components/ui/animated/confetti';
 import { MascotPop } from '@/components/ui/animated/mascot-pop';
 import { Btn3D } from '@/components/ui/btn-3d';
+import { Interactive } from '@/components/ui/interactive';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
 import { safeGoBack } from '@/lib/navigation';
@@ -202,9 +202,9 @@ export default function FlashcardsScreen() {
     <View style={styles.dark}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.head}>
-          <Pressable onPress={goBack} hitSlop={10}>
+          <Interactive onPress={goBack} hitSlop={10}>
             <Text style={styles.closeX}>✕</Text>
-          </Pressable>
+          </Interactive>
           <View style={styles.barWrap}>
             <ProgressBar
               progress={(index + 1) / total}

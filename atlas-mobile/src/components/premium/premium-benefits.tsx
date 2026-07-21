@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
 import type { PremiumPlan } from '@/lib/purchases';
 
@@ -49,7 +50,7 @@ function PlanCard({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={styles.planCard}>
+    <Interactive onPress={onPress} style={styles.planCard}>
       {badge && (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{badge}</Text>
@@ -61,7 +62,7 @@ function PlanCard({
         <Text style={styles.planSub}>{sub}</Text>
       </Text>
       <Text style={styles.planCta}>Seç</Text>
-    </Pressable>
+    </Interactive>
   );
 }
 

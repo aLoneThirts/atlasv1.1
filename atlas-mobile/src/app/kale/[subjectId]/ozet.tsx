@@ -1,10 +1,11 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasColors, AtlasFonts, AtlasSurface } from '@/constants/atlas-theme';
 import { safeGoBack } from '@/lib/navigation';
 import { fetchTopicSummary } from '@/lib/queries';
@@ -73,9 +74,9 @@ export default function OzetScreen() {
         style={styles.head}>
         <SafeAreaView edges={['top']}>
           <View style={styles.headRow}>
-            <Pressable onPress={() => safeGoBack(router, '/harita')} hitSlop={10} style={styles.backPill}>
+            <Interactive onPress={() => safeGoBack(router, '/harita')} hitSlop={10} style={styles.backPill}>
               <Text style={styles.backText}>‹ Geri</Text>
-            </Pressable>
+            </Interactive>
             <View style={styles.headTitles}>
               <Text style={styles.headLabel}>KONU ÖZETİ</Text>
               <Text style={styles.headTitle} numberOfLines={2}>

@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
 import { safeGoBack } from '@/lib/navigation';
 import { fetchNotifications, markNotificationsRead } from '@/lib/queries';
@@ -40,7 +41,8 @@ export default function BildirimlerScreen() {
       setUnreadIds(unread);
       setItems(list);
       if (unread.size > 0) markNotificationsRead().catch(() => {});
-    } catch {
+    } catch (e) {
+      console.error('[bildirimler] yüklenemedi:', e);
       setItems([]);
     }
   };
@@ -59,9 +61,9 @@ export default function BildirimlerScreen() {
     <View style={[styles.container, { backgroundColor: surface.bg }]}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Pressable onPress={() => safeGoBack(router)} hitSlop={10}>
+          <Interactive onPress={() => safeGoBack(router)} hitSlop={10}>
             <Text style={[styles.back, { color: surface.text }]}>‹ Geri</Text>
-          </Pressable>
+          </Interactive>
           <Text style={[styles.title, { color: surface.text }]}>Bildirimler</Text>
           <View style={styles.backSpacer} />
         </View>
@@ -80,7 +82,7 @@ export default function BildirimlerScreen() {
               items.map((item) => {
                 const unread = unreadIds.has(item.id);
                 return (
-                  <Pressable
+                  <Interactive
                     key={item.id}
                     onPress={() => item.route && router.push(item.route as never)}
                     style={[
@@ -96,7 +98,7 @@ export default function BildirimlerScreen() {
                         {relativeTr(item.createdAt)}
                       </Text>
                     </View>
-                  </Pressable>
+                  </Interactive>
                 );
               })
             ))}

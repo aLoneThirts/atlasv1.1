@@ -1,11 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
 import { DateField } from '@/components/ui/date-field';
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasColors, AtlasGradients, AtlasLayout, AtlasRadius } from '@/constants/atlas-theme';
 import { useAuth } from '@/lib/auth-context';
 import { refreshExamCountdownNotification } from '@/lib/exam-countdown-notification';
@@ -202,14 +203,14 @@ export default function OnboardingScreen() {
               <Text style={styles.trackLabel}>Hangi sınava hazırlanıyorsun?</Text>
               <View style={styles.trackRow}>
                 {EXAM_TRACK_OPTIONS.map((opt) => (
-                  <Pressable
+                  <Interactive
                     key={opt.value}
                     onPress={() => setExamTrackLocal(opt.value)}
                     style={[styles.trackCard, examTrack === opt.value && styles.trackCardActive]}>
                     <Text style={styles.trackEmoji}>{opt.emoji}</Text>
                     <Text style={styles.trackTitle}>{opt.title}</Text>
                     <Text style={styles.trackSubtitle}>{opt.subtitle}</Text>
-                  </Pressable>
+                  </Interactive>
                 ))}
               </View>
 
@@ -238,7 +239,7 @@ export default function OnboardingScreen() {
                 onSubmitEditing={() => finish(true)}
               />
 
-              <Pressable
+              <Interactive
                 style={styles.termsRow}
                 onPress={() => setTermsAccepted((v) => !v)}
                 hitSlop={6}>
@@ -254,7 +255,7 @@ export default function OnboardingScreen() {
                   &apos;nı okudum, kabul ediyorum. 18 yaşından küçüksem velimin bilgisi
                   dahilinde kullanıyorum.
                 </Text>
-              </Pressable>
+              </Interactive>
 
               {error && <Text style={styles.error}>{error}</Text>}
 
@@ -262,9 +263,9 @@ export default function OnboardingScreen() {
                 {busy ? '...' : 'Kaydet ve Devam Et'}
               </Btn3D>
 
-              <Pressable onPress={() => finish(false)} disabled={busy || !loaded || !termsAccepted} hitSlop={10}>
+              <Interactive onPress={() => finish(false)} disabled={busy || !loaded || !termsAccepted} hitSlop={10}>
                 <Text style={styles.skip}>Hedef Okul/Bölümü Şimdilik Atla</Text>
-              </Pressable>
+              </Interactive>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>

@@ -57,6 +57,16 @@ export function weekStartIstanbul(): string {
   return tr.toISOString().slice(0, 10);
 }
 
+/**
+ * İstanbul gününün YYYY-MM-DD'si (offsetDays ile geçmişe/geleceğe kaydırılabilir) —
+ * `profiles.streak_updated_on` (Postgres `date`) ile client tarafında karşılaştırmak
+ * için. finish_quiz()'ün streak mantığıyla birebir aynı gün hesabı (§4.2).
+ */
+export function istanbulDateStr(offsetDays = 0): string {
+  const tr = new Date(Date.now() + 3 * HOUR + offsetDays * 24 * HOUR);
+  return tr.toISOString().slice(0, 10);
+}
+
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
@@ -465,10 +475,22 @@ export async function fetchSubjectTree(subjectId: string): Promise<UnitNode[]> {
   return tree;
 }
 
-/** Ev ekranı "Devam Et" hedefi: sıradaki fethedilecek konu */
-export async function fetchContinueTarget(isPremium: boolean): Promise<ContinueTarget | null> {
+/**
+ * Ev ekranı "Devam Et" hedefi: sıradaki fethedilecek konu.
+ * `examTrack='tyt_ayt_ea'` kullanıcılar için AYT dersleri de aday listesine
+ * girer — önceden yalnız exam_type='tyt' filtreleniyordu, bu da TYT'sini
+ * bitiren AYT öğrencisine "tüm konular fethedildi" yanlış mesajını gösteriyordu
+ * (AYT dersleri sort_order 10+ olduğundan zaten TYT'den sonra denenir, bkz.
+ * schema.sql/ayt-subjects.sql).
+ */
+export async function fetchContinueTarget(
+  isPremium: boolean,
+  examTrack: Profile['exam_track'] = 'tyt',
+): Promise<ContinueTarget | null> {
   const subjects = await fetchSubjects();
-  const playable = subjects.filter((s) => s.exam_type === 'tyt' && (s.is_free || isPremium));
+  const playable = subjects.filter(
+    (s) => (s.exam_type === 'tyt' || examTrack === 'tyt_ayt_ea') && (s.is_free || isPremium),
+  );
   // ücretsiz ders (Tarih) önce — monetizasyon kuralı gereği listede zaten filtreli
   for (const subject of playable) {
     const tree = await fetchSubjectTree(subject.id);
@@ -670,7 +692,7 @@ export async function fetchOpenMistakeCount(): Promise<number> {
 }
 
 /**
- * coach-chat Edge Function — Gemini proxy'si. Hata gövdesindeki kod
+ * coach-chat Edge Function — DeepSeek proxy'si. Hata gövdesindeki kod
  * ('premium_required' | 'rate_limited' | ...) Error.message olarak fırlatılır.
  */
 export async function sendCoachMessage(message: string): Promise<string> {
@@ -703,15 +725,31 @@ export async function saveMockExam(nets: MockExamNets, weakTopicIds: string[] = 
   if (error) throw error;
 }
 
-/** Deneme net geçmişi (eskiden yeniye) — Puan sekmesindeki trend grafiği için. */
+/** Deneme net geçmişi (eskiden yeniye) — Deneme sekmesindeki trend grafiği için. */
 export async function fetchMockExamHistory(): Promise<MockExamHistoryEntry[]> {
-  const { data, error } = await supabase.from('mock_exams').select('taken_on, nets').order('taken_on', { ascending: true });
+  const { data, error } = await supabase
+    .from('mock_exams')
+    .select('id, taken_on, nets')
+    .order('taken_on', { ascending: true });
   if (error) throw error;
-  return ((data ?? []) as { taken_on: string; nets: MockExamNets }[]).map((r) => ({
+  return ((data ?? []) as { id: string; taken_on: string; nets: MockExamNets }[]).map((r) => ({
+    id: r.id,
     takenOn: r.taken_on,
     nets: r.nets,
     totalNet: Object.values(r.nets ?? {}).reduce((sum, n) => sum + (Number(n) || 0), 0),
   }));
+}
+
+/** Bir deneme kaydının netlerini düzenler — Deneme sekmesindeki kart içi düzenleme için. */
+export async function updateMockExamNets(id: string, nets: MockExamNets): Promise<void> {
+  const { error } = await supabase.from('mock_exams').update({ nets }).eq('id', id);
+  if (error) throw error;
+}
+
+/** Bir deneme kaydını siler — Deneme sekmesindeki kart içi silme için. */
+export async function deleteMockExam(id: string): Promise<void> {
+  const { error } = await supabase.from('mock_exams').delete().eq('id', id);
+  if (error) throw error;
 }
 
 /** Koç sekmesi "Bu Hafta" özet kartı — son 7 gün XP/quiz/yanlış-temizleme sayıları. */
@@ -719,7 +757,11 @@ export async function fetchWeeklySummary(): Promise<WeeklySummary> {
   const since = new Date(Date.now() - 7 * 24 * HOUR).toISOString();
   const [xpRes, quizRes, mistakesResolvedRes] = await Promise.all([
     supabase.from('xp_events').select('amount').gte('created_at', since),
-    supabase.from('quiz_attempts').select('id', { count: 'exact', head: true }).gte('created_at', since),
+    // quiz_attempts.created_at DİYE BİR KOLON YOK (bkz. schema.sql) — tabloda
+    // yalnız started_at/finished_at var. Bu filtre yanlış kolon adıyla PostgREST'ten
+    // 400 döndürüyordu (HEAD isteği olduğu için hata gövdesi boş geliyor, tarayıcı
+    // konsolunda yalnız "{message: ''}" görünüyordu — teşhisi zorlaştıran asıl sebep buydu).
+    supabase.from('quiz_attempts').select('id', { count: 'exact', head: true }).gte('started_at', since),
     supabase
       .from('mistakes')
       .select('id', { count: 'exact', head: true })

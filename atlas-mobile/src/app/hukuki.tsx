@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Card } from '@/components/ui/card';
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasFonts, AtlasSurface } from '@/constants/atlas-theme';
 import { safeGoBack } from '@/lib/navigation';
 import { useThemeMode } from '@/lib/theme-context';
@@ -29,9 +30,9 @@ export default function HukukiScreen() {
     <View style={[styles.container, { backgroundColor: surface.bg }]}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Pressable onPress={() => safeGoBack(router)} hitSlop={10}>
+          <Interactive onPress={() => safeGoBack(router)} hitSlop={10}>
             <Text style={[styles.back, { color: surface.text }]}>‹ Geri</Text>
-          </Pressable>
+          </Interactive>
           <Text style={[styles.title, { color: surface.text }]}>Gizlilik ve Şartlar</Text>
           <View style={styles.backSpacer} />
         </View>

@@ -1,10 +1,11 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
+import { Interactive } from '@/components/ui/interactive';
 import { Pill } from '@/components/ui/pill';
 import { GlowBanner } from '@/components/ui/animated/glow-banner';
 import { AtlasColors, AtlasFonts, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
@@ -104,7 +105,7 @@ export default function MistakesScreen() {
           {showAytToggle && (
             <View style={styles.trackToggle}>
               {(['tyt', 'ayt'] as const).map((t) => (
-                <Pressable
+                <Interactive
                   key={t}
                   onPress={() => onPickExamType(t)}
                   style={[
@@ -120,15 +121,15 @@ export default function MistakesScreen() {
                     ]}>
                     {t.toUpperCase()}
                   </Text>
-                </Pressable>
+                </Interactive>
               ))}
             </View>
           )}
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <Pressable onPress={() => router.push('/yanlislar/haftalik')}>
-            <GlowBanner glowColor={AtlasColors.purple} backgroundColor="#1A0A2E" style={styles.banner}>
+          <Interactive style={styles.banner} onPress={() => router.push('/yanlislar/haftalik')}>
+            <GlowBanner glowColor={AtlasColors.purple} backgroundColor="#1A0A2E">
               <View style={styles.bannerRow}>
                 <View style={styles.bannerText}>
                   <Text style={styles.bannerTitle}>🏆 Haftalık Mini Sınav</Text>
@@ -140,7 +141,7 @@ export default function MistakesScreen() {
                 </View>
               </View>
             </GlowBanner>
-          </Pressable>
+          </Interactive>
 
           {trackMistakes.length === 0 ? (
             <View style={styles.emptyBox}>
@@ -208,7 +209,7 @@ function Chip({
   surface: Surface;
 }) {
   return (
-    <Pressable
+    <Interactive
       onPress={onPress}
       style={[
         styles.chip,
@@ -216,7 +217,7 @@ function Chip({
         active && { backgroundColor: color ?? AtlasColors.inkStrong, borderColor: color ?? AtlasColors.inkStrong },
       ]}>
       <Text style={[styles.chipText, { color: surface.text }, active && styles.chipTextActive]}>{label}</Text>
-    </Pressable>
+    </Interactive>
   );
 }
 

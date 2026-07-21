@@ -1,7 +1,8 @@
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasColors, AtlasRadius } from '@/constants/atlas-theme';
 
 function toIso(d: Date): string {
@@ -41,7 +42,7 @@ export function DateField({
 
   return (
     <View>
-      <Pressable
+      <Interactive
         onPress={() => setOpen(true)}
         style={[
           styles.input,
@@ -56,7 +57,7 @@ export function DateField({
           ]}>
           {value ? formatTr(value) : placeholder}
         </Text>
-      </Pressable>
+      </Interactive>
 
       {open && (
         <>
@@ -68,9 +69,9 @@ export function DateField({
             onChange={onPick}
           />
           {Platform.OS === 'ios' && (
-            <Pressable onPress={() => setOpen(false)} style={styles.doneBtn}>
+            <Interactive onPress={() => setOpen(false)} style={styles.doneBtn}>
               <Text style={[styles.doneText, { color: dark ? AtlasColors.white : AtlasColors.blue }]}>Tamam</Text>
-            </Pressable>
+            </Interactive>
           )}
         </>
       )}

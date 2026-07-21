@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasColors, AtlasGradients, AtlasLayout, AtlasRadius } from '@/constants/atlas-theme';
 import { signInWithGoogle } from '@/lib/auth-google';
 import { supabase } from '@/lib/supabase';
@@ -221,11 +221,11 @@ export default function GirisScreen() {
                 {busy ? '...' : mode === 'login' ? 'Giriş Yap' : 'Hesap Oluştur'}
               </Btn3D>
 
-              <Pressable onPress={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); }}>
+              <Interactive onPress={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null); }}>
                 <Text style={styles.switch}>
                   {mode === 'login' ? 'Hesabın yok mu? Kayıt ol' : 'Zaten hesabın var mı? Giriş yap'}
                 </Text>
-              </Pressable>
+              </Interactive>
 
               <View style={styles.dividerRow}>
                 <View style={styles.dividerLine} />
@@ -233,17 +233,14 @@ export default function GirisScreen() {
                 <View style={styles.dividerLine} />
               </View>
 
-              <Pressable
-                onPress={submitGoogle}
-                disabled={googleBusy}
-                style={({ pressed }) => [styles.googleBtn, pressed && styles.googleBtnPressed]}>
+              <Interactive onPress={submitGoogle} disabled={googleBusy} style={styles.googleBtn}>
                 <View style={styles.googleG}>
                   <Text style={styles.googleGText}>G</Text>
                 </View>
                 <Text style={styles.googleText}>
                   {googleBusy ? 'Bağlanıyor…' : 'Google ile devam et'}
                 </Text>
-              </Pressable>
+              </Interactive>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -365,9 +362,6 @@ const styles = StyleSheet.create({
     backgroundColor: AtlasColors.white,
     borderRadius: AtlasRadius.button,
     paddingVertical: 14,
-  },
-  googleBtnPressed: {
-    opacity: 0.85,
   },
   googleG: {
     width: 22,

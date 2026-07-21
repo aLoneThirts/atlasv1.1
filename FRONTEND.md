@@ -5,6 +5,9 @@
 > kaynaktır — burası yalnız istemci mimarisini, ekran haritasını ve
 > state/veri kalıplarını anlatır. 2026-07-14'te kod okunarak yazıldı (ilk
 > sürüm — önceden bu dosya yoktu, yalnız BACKEND.md vardı).
+> **2026-07-20'de "Engagement paketi" (07-16'da eklenen rozetler/bildirimler/
+> deneme sekmesi/hedefli pratik quiz) ve o tarihten beri kod okunarak
+> güncellendi — bkz. §2, §7, §8.**
 
 ---
 
@@ -44,14 +47,26 @@ atlas-mobile/
 │   │   ├── tercih.tsx               ← Tercih Robotu (en düşük/en yüksek sıralama
 │   │   │                             aralığı → o aralıktaki programlar, 2026-07-14
 │   │   │                             revizyonu — eski risk-bantlı model kaldırıldı)
+│   │   ├── rozetler.tsx             ← Rozetlerim (tam liste) — Ev ekranındaki
+│   │   │                             teaser'dan açılır (2026-07-16)
+│   │   ├── bildirimler.tsx          ← Bildirim gelen kutusu — Ev ekranındaki 🔔
+│   │   │                             ikonundan açılır (2026-07-16)
+│   │   ├── deneme/quiz-hedef.tsx    ← Deneme sonrası "zayıf konular" hedefli
+│   │   │                             pratik quiz (2026-07-16, bkz. BACKEND.md §6.8)
 │   │   ├── (tabs)/                  ← Alt sekmeler (NativeTabs)
-│   │   │   ├── _layout.tsx          ← AppTabs (Ev/Harita/Koç/Yanlışlar/Puan)
-│   │   │   ├── index.tsx            ← Ev: streak/can/günlük XP + "Devam Et"
-│   │   │   ├── harita.tsx           ← Fetih haritası (kale düğümleri)
-│   │   │   ├── koc.tsx              ← AI koç sohbeti (DeepSeek proxy)
+│   │   │   ├── _layout.tsx          ← AppTabs (Ev/Harita/Koç/Yanlışlar/Puan/Deneme)
+│   │   │   ├── index.tsx            ← Ev: streak/can/günlük XP + "Devam Et" +
+│   │   │   │                          rozet teaser'ı + 🔔 bildirim ikonu
+│   │   │   ├── harita.tsx           ← İnce route dosyası, gerçek mantık
+│   │   │   │                          components/map/map-screen.tsx'te
+│   │   │   ├── koc.tsx              ← AI koç sohbeti (DeepSeek proxy) + katlanır
+│   │   │   │                          "Deneme Sonucu Gir" formu (net + zayıf konu
+│   │   │   │                          seçici) + "Bu Hafta" özet çipi
 │   │   │   ├── yanlislar.tsx        ← Yanlış havuzu listesi
-│   │   │   └── puan.tsx             ← YKS puan hesaplama + tercih robotu linki +
-│   │   │                             okul/bölüm sırala
+│   │   │   ├── puan.tsx             ← YKS puan hesaplama + tercih robotu linki +
+│   │   │   │                          okul/bölüm sırala
+│   │   │   └── deneme.tsx           ← Deneme Net Takibi (trend grafiği + geçmiş) —
+│   │   │                              Puan'dan ayrı, kendi sekmesi (2026-07-16)
 │   │   ├── kale/[subjectId]/
 │   │   │   ├── index.tsx            ← Ders içi konu ağacı (üniteler/konular)
 │   │   │   ├── ozet.tsx             ← Konu özeti (yalnız seed_tarih_full.sql
@@ -65,9 +80,17 @@ atlas-mobile/
 │   │       └── quiz-tekil.tsx       ← Tek soruluk yanlış çözme akışı
 │   ├── components/
 │   │   ├── app-tabs.tsx (+.web.tsx) ← NativeTabs tanımı
+│   │   ├── badges/                  ← badge-grid.tsx (rozetler.tsx ızgarası),
+│   │   │                              badge-unlock-popup.tsx (kutlama popup'ı,
+│   │   │                              Ev + tüm quiz sonuç ekranlarında)
 │   │   ├── hearts/hearts-empty-card.tsx  ← "Canın Bitti" kartı + formatCountdown()
+│   │   ├── koc/weak-topics-picker.tsx  ← Ders→bölüm→konu 3 seviyeli akordeon seçici
+│   │   │                              (Koç'taki "Deneme Sonucu Gir" formunda)
+│   │   ├── score/net-trend-chart.tsx  ← Elle çizilmiş SVG çizgi grafik (Deneme
+│   │   │                              sekmesi) — proje içinde grafik kütüphanesi YOK
 │   │   ├── map/                     ← Harita çizimi (kale düğümü, yollar, boss kale,
-│   │   │                              dekorasyon, layout hesaplama)
+│   │   │                              dekorasyon, layout hesaplama) — dışa açılan
+│   │   │                              tek export `map-screen.tsx`'teki `MapScreen`
 │   │   ├── payment/card-form.tsx    ← iyzico kart giriş formu (yalnız UI, veri
 │   │   │                              hiç saklanmaz — bkz. BACKEND.md §7)
 │   │   ├── premium/premium-benefits.tsx  ← Premium vitrin liste bileşeni
@@ -78,7 +101,8 @@ atlas-mobile/
 │   ├── constants/
 │   │   ├── atlas-theme.ts           ← TÜM tasarım token'ları (bkz. §5)
 │   │   └── tr-cities.ts             ← Tercih robotu şehir filtresi için il listesi
-│   ├── hooks/use-color-scheme.ts(.web.ts), use-theme.ts
+│   ├── hooks/use-color-scheme.ts(.web.ts), use-theme.ts, use-tab-badges.ts
+│   │             (Yanlışlar sekmesi kırmızı sayı rozeti, 60sn polling — 2026-07-16)
 │   └── lib/
 │       ├── supabase.ts              ← Supabase istemcisi (env: EXPO_PUBLIC_*)
 │       ├── auth-context.tsx         ← AuthProvider/useAuth (bkz. §4.1)
@@ -232,25 +256,30 @@ CSS değişkenlerinin RN karşılığı, tek dosyada toplanmış:
 |---|---|---|
 | `giris.tsx` | `auth.signUp`/`signInWithPassword`, `signInWithGoogle`, `is_username_available` | §7, username.sql |
 | `onboarding.tsx` | `set_exam_track`, `updateProfile` (username/ad-soyad/hedef/terms_accepted_at), `is_username_available` | §4.9, §7 |
-| `(tabs)/index.tsx` | `fetchProfile`, `fetchXpToday`, `fetchContinueTarget`, `fetchOpenMistakeCount`, `getHearts` | §4.1, §4.3 |
-| `(tabs)/harita.tsx` | `fetchSubjectSummaries`, `map-progress.ts` | §4.5 |
-| `(tabs)/koc.tsx` | `sendCoachMessage` (coach-chat Edge Fn), `fetchCoachHistory` | §6.3 |
-| `(tabs)/yanlislar.tsx` | `fetchOpenMistakes` | §4.6 |
+| `(tabs)/index.tsx` | `fetchProfile`, `fetchXpToday`, `fetchContinueTarget`, `fetchOpenMistakeCount`, `getHearts`, `fetchUnreadNotificationCount`, `fetchBadges`/`checkAndAwardBadges` | §4.1, §4.3, §6.8 |
+| `(tabs)/harita.tsx` (→ `map-screen.tsx`) | `fetchSubjectSummaries`, `fetchProfile` (TYT/AYT toggle için `exam_track`), `map-progress.ts` | §4.5 |
+| `(tabs)/koc.tsx` | `sendCoachMessage` (coach-chat Edge Fn), `fetchCoachHistory`, `fetchWeeklySummary`, `saveMockExam` (+`weak_topic_ids`), `fetchSubjects`/`fetchSubjectTree` (WeakTopicsPicker) | §6.3, §6.8 |
+| `(tabs)/yanlislar.tsx` | `fetchOpenMistakes`, `fetchProfile` (AYT toggle) | §4.6 |
 | `(tabs)/puan.tsx` | `calculateAndSaveExamScore`, `fetchScoreRankDistribution`/`fetchAvailableRankYears` (+`rank-estimator.ts`), `searchYksPrograms`, `fetchProgramStats` | §11.1, §11.2 |
+| `(tabs)/deneme.tsx` | `fetchMockExamHistory` (yalnız okuma — giriş `koc.tsx`'te) | §6.8 |
+| `deneme/quiz-hedef.tsx` | `fetchQuestionsByTopics`, `finishQuiz(mode:'weak_topics')`, `loseHeart`, `getHearts`, `checkAndAwardBadges` | §6.1, §6.8 |
+| `rozetler.tsx` | `fetchBadges` | §6.8 |
+| `bildirimler.tsx` | `fetchNotifications`, `markNotificationsRead` | §6.8 |
 | `tercih.tsx` | `fetchTercihSiraAraligi` (`tercih_sira_araligi` RPC, bkz. `tercih_aralik.sql`) | §11.1 |
-| `kale/[subjectId]/*` | `fetchSubjectTree`, `fetchTopicSummary`, `fetchTopicQuestions`, `finishQuiz`, `loseHeart`, `getHearts`, `fetchFlashcardsByTopic` | §4.5, §4.8, §6.1 |
-| `yanlislar/haftalik*` | `fetchCurrentWeeklyExam`, `finishQuiz(mode:'weekly')` | §4.7, §6.2 |
+| `kale/[subjectId]/*` | `fetchSubjectTree`, `fetchTopicSummary`, `fetchTopicQuestions`, `finishQuiz`, `loseHeart`, `getHearts`, `fetchFlashcardsByTopic`, `checkAndAwardBadges` | §4.5, §4.8, §6.1, §6.8 |
+| `yanlislar/haftalik*` | `fetchCurrentWeeklyExam`, `finishQuiz(mode:'weekly')`, `checkAndAwardBadges` | §4.7, §6.2, §6.8 |
+| `yanlislar/quiz-tekil.tsx` | `fetchQuestionById`, `finishQuiz(mode:'single')`, `checkAndAwardBadges` | §4.6, §6.1, §6.8 |
 | `premium.tsx` / `odeme.tsx` | `purchases.ts` → iyzico-pay Edge Fn | §4.9, §6.6 |
 | `ayarlar.tsx` | `setExamTrack`, `updateProfile`, `deleteAccount` | §4.9, §7 |
 
 ---
 
-## 8. Bilinen Açık İşler / Riskler (2026-07-14)
+## 8. Bilinen Açık İşler / Riskler (2026-07-20 itibarıyla)
 
 1. **`shared/rank-estimator.ts` kesinlik uyarısı UI'da doğrulanmalı** —
    kod içi yorum "~yaklaşık" ibaresi + ÖSYM uyarısı ŞART diyor;
-   `(tabs)/puan.tsx`'te bu mevcut (satır ~309-315), ama gelecekte ekran
-   değişirse bu uyarı metninin kalması gerekir.
+   `(tabs)/puan.tsx`'te bu mevcut, ama gelecekte ekran değişirse bu uyarı
+   metninin kalması gerekir.
 2. **`hukuki.tsx`'te destek e-postası hâlâ placeholder** (`[destek e-postası
    eklenecek]`) — Göktuğ şirket maili çıkınca dolduracak (bkz. proje hafızası).
 3. **Veri cache/senkron yok** — her ekran kendi verisini `useFocusEffect`'te
@@ -259,13 +288,33 @@ CSS değişkenlerinin RN karşılığı, tek dosyada toplanmış:
    sorun değil, büyürse React Query değerlendirilebilir (§4.1).
 4. **`lib/types.ts` elle senkron** — Supabase'de `npx supabase gen types`
    ile otomatik tip üretimi KURULMADI; şema değişince bu dosyayı elle
-   güncellemeyi unutma (özellikle BACKEND.md §11'deki yeni tablolar için
-   zaten yapıldı, ama sonraki her migration için tekrar gerekir).
+   güncellemeyi unutma — Engagement paketi (badges/notifications/
+   weak_topic_ids, bkz. BACKEND.md §6.8) 2026-07-16'da eklenirken zaten
+   yapıldı, ama sonraki her migration için tekrar gerekir.
 5. **`seed_tarih_full.sql` yüklenmediği için `ozet.tsx` (konu özeti ekranı)
    çoğu konuda boş/null dönebilir** — `fetchTopicSummary` null-safe ama
    ekranın bu durumda ne gösterdiği ayrıca doğrulanmalı (bkz. BACKEND.md §6.7).
 6. ~~`supabase/tercih_aralik.sql` henüz çalıştırılmadı~~ → **ÇÖZÜLDÜ (2026-07-14),**
    `tercih_sira_araligi` RPC canlıda doğrulandı.
+7. ~~Koç sekmesindeki "Deneme Sonucu Gir" formunda Matematik alanı yoktu~~ →
+   **ÇÖZÜLDÜ (2026-07-20).** TYT'nin en ağırlıklı dersi (40 soru) net girişine
+   eklendi (`(tabs)/koc.tsx` `DENEME_FIELDS`) — önceden yalnız Türkçe/Tarih/
+   Coğrafya/Felsefe/Fen vardı, hiçbir Matematik neti kaydedilemiyordu. Canlı
+   `mock_exams` verisiyle doğrulandı (mevcut kayıtların `nets`'inde hiç
+   "Matematik" anahtarı yoktu). `tsc --noEmit` temiz, Expo web bundler
+   hatasız derledi (dev server ile doğrulandı).
+8. **`streak-reminder` Edge Function'ının deploy/cron durumu doğrulanmadı**
+   — dosya repoda var (bkz. BACKEND.md §6.8) ama Supabase Dashboard'da
+   schedule kurulu mu ayrıca kontrol edilmeli; ayrıca push zaten `eas.
+   projectId` eksikliği yüzünden hiçbir cihaza ulaşmıyor (BACKEND.md §6.7
+   madde 8) — yalnız uygulama içi bildirim gelen kutusu çalışıyor.
+9. ~~`app-tabs.tsx` altı sekmeyi mi yansıtıyor doğrulanmalı~~ → **doğrulandı
+   (2026-07-20).** `app-tabs.tsx` gerçekten 6 sekme tanımlıyor (Ev/Harita/Koç/
+   Yanlışlar/Puan/Deneme) + Yanlışlar sekmesinde `useTabBadges()` hook'undan
+   gelen kırmızı sayı rozeti (`hooks/use-tab-badges.ts`, `fetchOpenMistakeCount`'ı
+   60sn'de bir polling ile tazeler — `(tabs)/_layout.tsx` odak döngüsü yaşamadığı
+   için `useFocusEffect` yerine bilinçli bir `setInterval` kullanılmış). Bu
+   dosya önceki FRONTEND.md sürümünde hiç belgelenmemişti.
 
 ---
 

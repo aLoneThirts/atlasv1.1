@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Btn3D } from '@/components/ui/btn-3d';
 import { Card } from '@/components/ui/card';
+import { Interactive } from '@/components/ui/interactive';
 import { AtlasColors, AtlasFonts, AtlasLayout, AtlasRadius, AtlasSurface } from '@/constants/atlas-theme';
 import { TR_CITIES, foldTr } from '@/constants/tr-cities';
 import { safeGoBack } from '@/lib/navigation';
@@ -159,9 +160,9 @@ export default function TercihScreen() {
     <View style={[styles.container, { backgroundColor: surface.bg }]}>
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Pressable onPress={() => safeGoBack(router)} hitSlop={10}>
+          <Interactive onPress={() => safeGoBack(router)} hitSlop={10}>
             <Text style={[styles.back, { color: surface.text }]}>‹ Geri</Text>
-          </Pressable>
+          </Interactive>
           <Text style={[styles.title, { color: surface.text }]}>🎯 Tercih Robotu</Text>
           <View style={styles.backSpacer} />
         </View>
@@ -354,7 +355,7 @@ function PillRow<T>({
       {options.map((opt) => {
         const active = opt.value === selected;
         return (
-          <Pressable
+          <Interactive
             key={String(opt.value)}
             onPress={() => onSelect(opt.value)}
             style={[
@@ -365,7 +366,7 @@ function PillRow<T>({
             <Text style={[styles.pillText, { color: active ? AtlasColors.white : surface.textSecondary }]}>
               {opt.label}
             </Text>
-          </Pressable>
+          </Interactive>
         );
       })}
     </View>
@@ -453,7 +454,7 @@ function AutocompleteInput({
       {matches.length > 0 && (
         <View style={[styles.suggestBox, { backgroundColor: surface.card, borderColor: surface.cardBorder }]}>
           {matches.map((s) => (
-            <Pressable
+            <Interactive
               key={s}
               onPress={() => {
                 onChangeText(s);
@@ -461,7 +462,7 @@ function AutocompleteInput({
               }}
               style={styles.suggestRow}>
               <Text style={[styles.suggestText, { color: surface.text }]}>{s}</Text>
-            </Pressable>
+            </Interactive>
           ))}
         </View>
       )}

@@ -256,8 +256,9 @@ export type Badge = {
   earnedAt: string | null;
 };
 
-/** mock_exams geçmişinden bir satır — Puan sekmesindeki trend grafiği için. */
+/** mock_exams geçmişinden bir satır — Deneme sekmesindeki trend grafiği için. */
 export type MockExamHistoryEntry = {
+  id: string;
   takenOn: string;
   nets: MockExamNets;
   totalNet: number;
