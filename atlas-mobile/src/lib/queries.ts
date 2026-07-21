@@ -692,14 +692,18 @@ export async function fetchCoachHistory(conversationId?: string, limit = 200): P
     targetId = (latest as { conversation_id: string }).conversation_id;
   }
 
+  // En SONdaki `limit` mesaj isteniyor (uzun bir konuşmada en eski mesajlar
+  // değil) — bu yüzden azalan sırada çekilip sonra ekran sırasına (artan)
+  // çevriliyor; düz artan sırada limit uygulamak yanlışlıkla en eski
+  // mesajları döndürüp yenileri keserdi.
   const { data, error } = await supabase
     .from('coach_messages')
     .select('id, conversation_id, role, content, created_at')
     .eq('conversation_id', targetId)
-    .order('created_at', { ascending: true })
+    .order('created_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return (data ?? []) as CoachMessage[];
+  return ((data ?? []) as CoachMessage[]).reverse();
 }
 
 /** Geçmiş konuşmalar listesi — Koç ekranındaki 🕘 paneli için (en son üstte). */
