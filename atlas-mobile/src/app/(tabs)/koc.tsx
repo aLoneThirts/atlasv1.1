@@ -22,7 +22,7 @@ import { Interactive } from '@/components/ui/interactive';
 import { MarkdownText } from '@/components/ui/markdown-text';
 import { Pill } from '@/components/ui/pill';
 import { TypingDots } from '@/components/ui/animated/typing-dots';
-import { AtlasColors, AtlasFonts, AtlasLayout, AtlasRadius } from '@/constants/atlas-theme';
+import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
 import {
   fetchCoachHistory,
   fetchOpenMistakes,
@@ -611,8 +611,8 @@ export default function CoachScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AtlasColors.coachBg },
-  // ChatGPT tarzı ortalanmış sütun — dar (telefon) ekranlarda tam genişlik,
-  // geniş (masaüstü web) ekranlarda AtlasLayout.maxContentWidth'te ortalanır.
+  // Tam genişlik — dar (telefon) ve geniş (masaüstü web) ekranlarda aynı,
+  // artık ortalanmış dar bir sütuna sıkıştırılmıyor (kullanıcı isteği).
   // minHeight: 0 KRİTİK: bu olmadan RN Web'de flex:1 alt-öğe (chat ScrollView)
   // kardeşleri arasında küçülüp kendi içinde kaymak yerine tüm sayfayı büyütüyor
   // — önceki mesajlar görünüm dışına itiliyordu, bug buradan geliyordu.
@@ -620,8 +620,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
     width: '100%',
-    maxWidth: AtlasLayout.maxContentWidth,
-    alignSelf: 'center',
   },
   center: { alignItems: 'center', justifyContent: 'center', padding: 24 },
 
