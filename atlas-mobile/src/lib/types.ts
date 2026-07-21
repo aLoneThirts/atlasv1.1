@@ -106,9 +106,18 @@ export type MistakeItem = {
 
 export type CoachMessage = {
   id: number;
+  conversation_id: string;
   role: 'user' | 'coach';
   content: string;
   created_at: string;
+};
+
+/** Koç geçmiş konuşmalar listesi — bkz. supabase/coach-conversations.sql list_coach_conversations(). */
+export type CoachConversationSummary = {
+  conversationId: string;
+  firstMessage: string;
+  lastMessageAt: string;
+  messageCount: number;
 };
 
 export type WeeklyExam = {

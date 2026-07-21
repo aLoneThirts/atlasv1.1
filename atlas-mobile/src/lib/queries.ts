@@ -6,6 +6,7 @@
 import { supabase } from './supabase';
 import type {
   Badge,
+  CoachConversationSummary,
   CoachMessage,
   ContinueTarget,
   ExamCalcResult,
@@ -672,14 +673,52 @@ export async function fetchCurrentWeeklyExam(): Promise<WeeklyExam | null> {
    Koç
 ------------------------------------------------------------ */
 
-export async function fetchCoachHistory(limit = 50): Promise<CoachMessage[]> {
+/**
+ * Bir konuşma oturumunun (thread) mesajları — eskiden yeniye. `conversationId`
+ * verilmezse en son konuşulan oturum otomatik bulunup o döner (uygulama
+ * açılışında "kaldığın yerden devam" davranışı için).
+ */
+export async function fetchCoachHistory(conversationId?: string, limit = 200): Promise<CoachMessage[]> {
+  let targetId = conversationId;
+  if (!targetId) {
+    const { data: latest, error: latestErr } = await supabase
+      .from('coach_messages')
+      .select('conversation_id')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestErr) throw latestErr;
+    if (!latest) return [];
+    targetId = (latest as { conversation_id: string }).conversation_id;
+  }
+
   const { data, error } = await supabase
     .from('coach_messages')
-    .select('id, role, content, created_at')
-    .order('created_at', { ascending: false })
+    .select('id, conversation_id, role, content, created_at')
+    .eq('conversation_id', targetId)
+    .order('created_at', { ascending: true })
     .limit(limit);
   if (error) throw error;
-  return ((data ?? []) as CoachMessage[]).reverse();
+  return (data ?? []) as CoachMessage[];
+}
+
+/** Geçmiş konuşmalar listesi — Koç ekranındaki 🕘 paneli için (en son üstte). */
+export async function fetchCoachConversations(): Promise<CoachConversationSummary[]> {
+  const { data, error } = await supabase.rpc('list_coach_conversations');
+  if (error) throw error;
+  return (
+    (data ?? []) as {
+      conversation_id: string;
+      first_message: string | null;
+      last_message_at: string;
+      message_count: number;
+    }[]
+  ).map((r) => ({
+    conversationId: r.conversation_id,
+    firstMessage: r.first_message ?? '(mesaj yok)',
+    lastMessageAt: r.last_message_at,
+    messageCount: r.message_count,
+  }));
 }
 
 export async function fetchOpenMistakeCount(): Promise<number> {
@@ -694,9 +733,13 @@ export async function fetchOpenMistakeCount(): Promise<number> {
 /**
  * coach-chat Edge Function — DeepSeek proxy'si. Hata gövdesindeki kod
  * ('premium_required' | 'rate_limited' | ...) Error.message olarak fırlatılır.
+ * `conversationId` zorunlu — ayrı sohbet oturumları için (bkz. koc.tsx,
+ * her "Yeni Sohbet" crypto.randomUUID() ile yeni bir id üretir).
  */
-export async function sendCoachMessage(message: string): Promise<string> {
-  const { data, error } = await supabase.functions.invoke('coach-chat', { body: { message } });
+export async function sendCoachMessage(message: string, conversationId: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('coach-chat', {
+    body: { message, conversation_id: conversationId },
+  });
   if (error) {
     let code = 'coach_unavailable';
     const ctx = (error as { context?: Response }).context;

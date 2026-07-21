@@ -1,9 +1,11 @@
+import * as Crypto from 'expo-crypto';
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -14,7 +16,7 @@ import {
   type TextInputContentSizeChangeEventData,
   type TextInputKeyPressEventData,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { WeakTopicsPicker } from '@/components/koc/weak-topics-picker';
 import { Btn3D } from '@/components/ui/btn-3d';
@@ -24,6 +26,7 @@ import { Pill } from '@/components/ui/pill';
 import { TypingDots } from '@/components/ui/animated/typing-dots';
 import { AtlasColors, AtlasFonts, AtlasRadius } from '@/constants/atlas-theme';
 import {
+  fetchCoachConversations,
   fetchCoachHistory,
   fetchOpenMistakes,
   fetchProfile,
@@ -32,7 +35,7 @@ import {
   saveMockExam,
   sendCoachMessage,
 } from '@/lib/queries';
-import type { MockExamNets, Profile, WeeklySummary } from '@/lib/types';
+import type { CoachConversationSummary, MockExamNets, Profile, WeeklySummary } from '@/lib/types';
 
 const COACH_AVATAR = require('@/assets/images/atlas/mascot-wave.png');
 
@@ -66,6 +69,18 @@ function uid(): string {
   return `local-${Date.now()}-${counter}`;
 }
 
+/** created_at'ten basit Türkçe göreli zaman — geçmiş sohbetler panelinde. */
+function relativeTr(iso: string): string {
+  const then = new Date(iso);
+  const now = new Date();
+  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOf(now) - startOf(then)) / (24 * 60 * 60 * 1000));
+  if (days <= 0) return 'bugün';
+  if (days === 1) return 'dün';
+  if (days < 7) return `${days} gün önce`;
+  return then.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+}
+
 /**
  * EKRAN 11 — Koç (AI sohbet)
  * Canlı coach-chat Edge Function'ına bağlı gerçek sohbet ekranı. ChatGPT
@@ -91,6 +106,16 @@ export default function CoachScreen() {
   const [input, setInput] = useState('');
   const [inputH, setInputH] = useState(MIN_INPUT_H);
   const [sending, setSending] = useState(false);
+
+  // Ayrı sohbet oturumları (thread) — her konuşmanın kendi conversation_id'si
+  // var (bkz. supabase/coach-conversations.sql). "Yeni Sohbet" yeni bir id
+  // üretir; 🕘 geçmiş paneli eski id'lere geri dönmeyi sağlar.
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [conversations, setConversations] = useState<CoachConversationSummary[]>([]);
+  const [conversationsLoading, setConversationsLoading] = useState(false);
+  const [conversationsError, setConversationsError] = useState<string | null>(null);
+  const [switchingConversation, setSwitchingConversation] = useState(false);
 
   const [denemeOpen, setDenemeOpen] = useState(openDeneme === '1');
 
@@ -173,16 +198,19 @@ export default function CoachScreen() {
         role: m.role,
         content: m.content,
       }));
-      // Boş geçmiş: kalıcı olmayan dostça bir açılış balonu
+      // Boş geçmiş: kalıcı olmayan dostça bir açılış balonu + taze bir
+      // conversation_id (ilk mesaj gönderilince kullanılacak).
       setItems(
         historyItems.length > 0
           ? historyItems
           : [{ kind: 'msg', id: 'greeting', role: 'coach', content: GREETING }],
       );
+      setConversationId(history[0]?.conversation_id ?? Crypto.randomUUID());
     } catch (e) {
       console.error('[koc] sohbet geçmişi/bağlam yüklenemedi:', e);
       // En azından karşılama ekranı görünsün — boş bir void yerine.
       setItems((prev) => (prev.length > 0 ? prev : [{ kind: 'msg', id: 'greeting', role: 'coach', content: GREETING }]));
+      setConversationId((prev) => prev ?? Crypto.randomUUID());
       setLoadError('Bazı veriler yüklenemedi — internetini kontrol edip aşağı çekerek tekrar dene.');
     }
   }, []);
@@ -203,6 +231,8 @@ export default function CoachScreen() {
   const ask = useCallback(
     async (promptText: string, displayText?: string) => {
       if (sending) return;
+      const cid = conversationId ?? Crypto.randomUUID();
+      if (!conversationId) setConversationId(cid);
       const shown = displayText ?? promptText;
       const typingId = uid();
       setItems((prev) => [
@@ -212,7 +242,7 @@ export default function CoachScreen() {
       ]);
       setSending(true);
       try {
-        const reply = await sendCoachMessage(promptText);
+        const reply = await sendCoachMessage(promptText, cid);
         setItems((prev) => [
           ...prev.filter((i) => i.id !== typingId),
           { kind: 'msg', id: uid(), role: 'coach', content: reply },
@@ -233,8 +263,57 @@ export default function CoachScreen() {
         setSending(false);
       }
     },
-    [sending],
+    [sending, conversationId],
   );
+
+  /** "Yeni Sohbet" — taze bir conversation_id üretir, ekranı karşılama durumuna döndürür. */
+  const startNewChat = useCallback(() => {
+    if (sending) return;
+    setConversationId(Crypto.randomUUID());
+    setItems([{ kind: 'msg', id: 'greeting', role: 'coach', content: GREETING }]);
+    setDenemeOpen(false);
+    setInput('');
+    setInputH(MIN_INPUT_H);
+  }, [sending]);
+
+  const openHistory = useCallback(async () => {
+    setHistoryOpen(true);
+    setConversationsLoading(true);
+    setConversationsError(null);
+    try {
+      setConversations(await fetchCoachConversations());
+    } catch (e) {
+      console.error('[koc] geçmiş sohbetler yüklenemedi:', e);
+      setConversationsError('Geçmiş sohbetler yüklenemedi — internetini kontrol edip tekrar dene.');
+    } finally {
+      setConversationsLoading(false);
+    }
+  }, []);
+
+  const loadConversation = useCallback(async (id: string) => {
+    setHistoryOpen(false);
+    setSwitchingConversation(true);
+    try {
+      const history = await fetchCoachHistory(id);
+      const historyItems: ChatItem[] = history.map((m) => ({
+        kind: 'msg',
+        id: `srv-${m.id}`,
+        role: m.role,
+        content: m.content,
+      }));
+      setItems(
+        historyItems.length > 0
+          ? historyItems
+          : [{ kind: 'msg', id: 'greeting', role: 'coach', content: GREETING }],
+      );
+      setConversationId(id);
+    } catch (e) {
+      console.error('[koc] seçilen sohbet yüklenemedi:', e);
+      setLoadError('Sohbet yüklenemedi — internetini kontrol edip tekrar dene.');
+    } finally {
+      setSwitchingConversation(false);
+    }
+  }, []);
 
   const onSend = useCallback(() => {
     const text = input.trim();
@@ -387,6 +466,14 @@ export default function CoachScreen() {
               <Text style={styles.headName}>Atlas Koçu</Text>
               <Text style={styles.headOnline}>● Verilerini görerek konuşuyor</Text>
             </View>
+            <View style={styles.headActions}>
+              <Interactive onPress={openHistory} hitSlop={8} style={styles.headActionBtn}>
+                <Text style={styles.headActionIcon}>🕘</Text>
+              </Interactive>
+              <Interactive onPress={startNewChat} hitSlop={8} style={styles.headActionBtn}>
+                <Text style={styles.headActionIcon}>✏️</Text>
+              </Interactive>
+            </View>
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
@@ -426,7 +513,11 @@ export default function CoachScreen() {
           </Interactive>
         )}
 
-        {isEmptyChat ? (
+        {switchingConversation ? (
+          <View style={[styles.center, { flex: 1 }]}>
+            <ActivityIndicator color={AtlasColors.purple} size="large" />
+          </View>
+        ) : isEmptyChat ? (
           /* Karşılama ekranı — ChatGPT'nin "bugün sana nasıl yardımcı olabilirim"
              boş durumu: ortalanmış maskot + başlık + öneri kartları. */
           <ScrollView contentContainerStyle={styles.heroScroll} keyboardShouldPersistTaps="handled">
@@ -605,6 +696,57 @@ export default function CoachScreen() {
           </Interactive>
         </View>
       </View>
+
+      {/* Geçmiş Sohbetler paneli — 🕘 ile açılır */}
+      <Modal visible={historyOpen} animationType="slide" onRequestClose={() => setHistoryOpen(false)}>
+        <View style={styles.historyModalBg}>
+          <SafeAreaView style={styles.historySafe}>
+            <View style={styles.historyHead}>
+              <Text style={styles.historyTitle}>Geçmiş Sohbetler</Text>
+              <Interactive onPress={() => setHistoryOpen(false)} hitSlop={10}>
+                <Text style={styles.historyClose}>✕</Text>
+              </Interactive>
+            </View>
+
+            <Interactive style={styles.newChatRow} onPress={() => { setHistoryOpen(false); startNewChat(); }}>
+              <Text style={styles.newChatIcon}>✏️</Text>
+              <Text style={styles.newChatText}>Yeni Sohbet Başlat</Text>
+            </Interactive>
+
+            <ScrollView contentContainerStyle={styles.historyList}>
+              {conversationsLoading && (
+                <ActivityIndicator color={AtlasColors.purple} size="large" style={{ marginTop: 30 }} />
+              )}
+              {conversationsError && (
+                <Interactive style={styles.errorBanner} onPress={openHistory}>
+                  <Text style={styles.errorBannerText}>⚠️ {conversationsError} (tekrar denemek için dokun)</Text>
+                </Interactive>
+              )}
+              {!conversationsLoading && !conversationsError && conversations.length === 0 && (
+                <Text style={styles.historyEmpty}>Henüz geçmiş sohbetin yok.</Text>
+              )}
+              {!conversationsLoading &&
+                conversations.map((c) => (
+                  <Interactive
+                    key={c.conversationId}
+                    style={[
+                      styles.historyRow,
+                      c.conversationId === conversationId && styles.historyRowActive,
+                    ]}
+                    onPress={() => loadConversation(c.conversationId)}>
+                    <Text style={styles.historyRowText} numberOfLines={2}>
+                      {c.firstMessage}
+                    </Text>
+                    <View style={styles.historyRowMeta}>
+                      <Text style={styles.historyRowDate}>{relativeTr(c.lastMessageAt)}</Text>
+                      <Text style={styles.historyRowCount}>{c.messageCount} mesaj</Text>
+                    </View>
+                  </Interactive>
+                ))}
+            </ScrollView>
+          </SafeAreaView>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -656,6 +798,18 @@ const styles = StyleSheet.create({
   headText: { flex: 1 },
   headName: { color: AtlasColors.white, fontSize: 15, fontFamily: AtlasFonts.heading },
   headOnline: { color: '#6ee26e', fontSize: 10.5, fontFamily: AtlasFonts.bodySemi, marginTop: 1 },
+  headActions: { flexDirection: 'row', gap: 6 },
+  headActionBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headActionIcon: { fontSize: 15 },
   chipRow: { flexDirection: 'row', gap: 7, paddingRight: 8 },
 
   errorBanner: {
@@ -855,4 +1009,54 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { opacity: 0.4 },
   sendIcon: { color: AtlasColors.white, fontSize: 16 },
+
+  /* Geçmiş Sohbetler paneli */
+  historyModalBg: { flex: 1, backgroundColor: AtlasColors.coachBg },
+  historySafe: { flex: 1 },
+  historyHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+  },
+  historyTitle: { color: AtlasColors.white, fontSize: 17, fontFamily: AtlasFonts.heading },
+  historyClose: { color: 'rgba(255,255,255,0.7)', fontSize: 20, fontFamily: AtlasFonts.heading },
+  newChatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 18,
+    marginTop: 14,
+    backgroundColor: 'rgba(124,108,255,0.16)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(124,108,255,0.4)',
+    borderRadius: AtlasRadius.button,
+    padding: 13,
+  },
+  newChatIcon: { fontSize: 16 },
+  newChatText: { color: '#c9c2ff', fontSize: 13.5, fontFamily: AtlasFonts.bodyBold },
+  historyList: { padding: 18, gap: 10 },
+  historyEmpty: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 13,
+    fontFamily: AtlasFonts.bodySemi,
+    textAlign: 'center',
+    marginTop: 30,
+  },
+  historyRow: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: AtlasRadius.button,
+    padding: 14,
+    gap: 8,
+  },
+  historyRowActive: { borderColor: AtlasColors.violet, backgroundColor: 'rgba(76,59,206,0.18)' },
+  historyRowText: { color: AtlasColors.white, fontSize: 13.5, fontFamily: AtlasFonts.bodySemi, lineHeight: 19 },
+  historyRowMeta: { flexDirection: 'row', justifyContent: 'space-between' },
+  historyRowDate: { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontFamily: AtlasFonts.bodyBold },
+  historyRowCount: { color: 'rgba(255,255,255,0.45)', fontSize: 11, fontFamily: AtlasFonts.bodyBold },
 });

@@ -2,7 +2,10 @@
 // ATLAS — coach-chat Edge Function (BACKEND.md §6.3)
 // DeepSeek anahtarı istemciye ASLA konmaz; bu function proxy'dir.
 //
-// Input : { message: string }   (kullanıcı JWT'den bellidir)
+// Input : { message: string, conversation_id: string }   (kullanıcı JWT'den bellidir)
+//         conversation_id istemcide crypto.randomUUID() ile üretilir — ayrı
+//         sohbet oturumları/thread'leri için (bkz. coach-conversations.sql,
+//         "Yeni Sohbet" + geçmiş konuşma listesi özelliği).
 // Output: { reply: string }
 //
 // Akış:
@@ -50,9 +53,18 @@ Deno.serve(async (req) => {
   const deepseekKey = Deno.env.get('DEEPSEEK_API_KEY');
   if (!deepseekKey) return json({ error: 'deepseek_key_missing' }, 500);
 
-  const { message } = await req.json().catch(() => ({ message: null }));
+  const { message, conversation_id: conversationId } = await req
+    .json()
+    .catch(() => ({ message: null, conversation_id: null }));
   if (!message || typeof message !== 'string' || message.trim().length === 0) {
     return json({ error: 'message_required' }, 400);
+  }
+  // conversation_id istemcide crypto.randomUUID() ile üretilir (bkz.
+  // atlas-mobile/src/lib/queries.ts sendCoachMessage) — ayrı sohbet
+  // oturumları/thread'leri için (BACKEND.md/coach-conversations.sql).
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!conversationId || typeof conversationId !== 'string' || !uuidRe.test(conversationId)) {
+    return json({ error: 'conversation_id_required' }, 400);
   }
   const userMessage = message.trim().slice(0, 2000);
 
@@ -100,7 +112,12 @@ Deno.serve(async (req) => {
       .gte('created_at', thirtyDaysAgo),
     supabase.from('mistakes').select('id', { count: 'exact', head: true }).is('resolved_at', null),
     supabase.from('mock_exams').select('taken_on, nets').order('created_at', { ascending: false }).limit(1),
-    supabase.from('coach_messages').select('role, content').order('created_at', { ascending: false }).limit(10),
+    supabase
+      .from('coach_messages')
+      .select('role, content')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(10),
   ]);
 
   const xpToday = (xpRes.data ?? []).reduce((sum, e) => sum + (e.amount ?? 0), 0);
@@ -169,8 +186,12 @@ Deno.serve(async (req) => {
     'Şu an cevap veremiyorum, birazdan tekrar dener misin? 🙏';
 
   // Sohbet geçmişine yaz (RLS: own coach) — sıra korunsun diye ardışık
-  await supabase.from('coach_messages').insert({ user_id: userId, role: 'user', content: userMessage });
-  await supabase.from('coach_messages').insert({ user_id: userId, role: 'coach', content: reply });
+  await supabase
+    .from('coach_messages')
+    .insert({ user_id: userId, conversation_id: conversationId, role: 'user', content: userMessage });
+  await supabase
+    .from('coach_messages')
+    .insert({ user_id: userId, conversation_id: conversationId, role: 'coach', content: reply });
 
   return json({ reply });
 });
