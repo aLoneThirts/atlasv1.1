@@ -14,9 +14,14 @@ const NODE_WIDTH = 84;
 
 /**
  * Tek bir ders kalesi — konumu radyal düzenden (referans 393x852 uzayı) gelir,
- * gerçek piksele `scale` ile taşınır. İkon/rozet boyutları sabit kalır (scale
- * aralığı dar — ~0.85-1.17 — boyutu da ölçeklemek gözle fark edilmeyecek kadar
- * küçük bir kazanç ama karmaşıklık ekler).
+ * gerçek piksele `scale` ile taşınır. İkon boyutu sabit kalır (scale aralığı
+ * dar — ~0.85-1.17 varsayılmıştı) ama "FETHET!"/"ALINDI!" rozetleri BUNUN
+ * dışında — bunlar komşu kalelere göre yatayda taşan geniş pill'ler, düşük
+ * scale'de (ör. dar web pencerelerinde MIN_MAP_SCALE=0.82 tabanına inildiğinde)
+ * komşu kale rozetleriyle/ana kale etiketiyle görsel olarak çakışıyordu (canlı
+ * ekran görüntüsüyle doğrulandı). `badgeScale` ile bu rozetler haritanın genel
+ * scale'ine göre küçülüp aradaki boşluğu koruyor — okunabilirlik için 0.7 altına
+ * inmiyor.
  */
 export function CastleNode({
   castle,
@@ -33,6 +38,7 @@ export function CastleNode({
   const { x, y } = castleXY(index, total);
   const px = x * scale;
   const py = y * scale;
+  const badgeScale = Math.max(0.7, Math.min(1, scale));
   const { subject, frac, state } = castle;
   const locked = state === 'locked';
   const done = state === 'done';
@@ -52,10 +58,33 @@ export function CastleNode({
     <Pressable
       onPress={onPress}
       style={[styles.wrapper, { left: px - NODE_WIDTH / 2, top: py - ICON_SIZE / 2 - 8, width: NODE_WIDTH }]}>
-      {done && <Text style={styles.alindi}>ALINDI!</Text>}
+      {done && (
+        <Text
+          style={[
+            styles.alindi,
+            {
+              top: -13 * badgeScale,
+              fontSize: 9 * badgeScale,
+              paddingHorizontal: 8 * badgeScale,
+              paddingVertical: 3 * badgeScale,
+            },
+          ]}>
+          ALINDI!
+        </Text>
+      )}
       {active && (
-        <PulsingBadge style={styles.fethetWrap}>
-          <Text style={styles.fethet}>FETHET!</Text>
+        <PulsingBadge style={[styles.fethetWrap, { top: -34 * badgeScale }]}>
+          <Text
+            style={[
+              styles.fethet,
+              {
+                fontSize: 9.5 * badgeScale,
+                paddingHorizontal: 9 * badgeScale,
+                paddingVertical: 4 * badgeScale,
+              },
+            ]}>
+            FETHET!
+          </Text>
         </PulsingBadge>
       )}
       <View style={styles.iconSlot}>
